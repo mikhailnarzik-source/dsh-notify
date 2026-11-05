@@ -119,7 +119,10 @@ function inspect(label, storedSettings, expected) {
   const style = card.props.style ?? {}
 
   const rows = findAll(tree, withClass('dsh-ntf-row-title')).map((node) => String(node.children?.[0] ?? ''))
+  const groups = findAll(tree, withClass('dsh-ntf-group-title')).map((node) => String(node.children?.[0] ?? ''))
+  if (!groups.includes('Updates')) throw new Error('the updates section is missing')
   console.log(`[${label}]`)
+  console.log('  groups  :', groups.join(' | '))
   console.log('  rows    :', rows.join(' | '))
   console.log('  corner  :', stage.props['data-pos'], '| variant:', card.props['data-variant'])
   console.log('  type    :', style['--dsh-ntf-font-size'], String(style['--dsh-ntf-font-family']).slice(0, 32),

@@ -191,6 +191,28 @@ window.__ModuleLoader__.load({
         clear: 'Очистить',
         previewSession: 'Пример задачи',
         previewErrorText: 'Не удалось выполнить запрос к модели.',
+        updateTitle: 'Доступно обновление',
+        updateBody: 'Вышла версия dsh-notify {version}.',
+        updateNow: 'Обновить',
+        updateDoneTitle: 'Обновление установлено',
+        updateGroup: 'Обновления',
+        updateCurrent: 'Установленная версия',
+        updateStatus: 'Проверка обновлений',
+        updateCheck: 'Проверить обновления',
+        updateInstall: 'Установить обновление',
+        updateChecking: 'Проверяю GitHub…',
+        updateInstalling: 'Скачиваю и устанавливаю…',
+        updateUpToDate: 'Обновлений нет.',
+        updateAvailable: 'Доступна версия {version}.',
+        updateInstalled: 'Версия {version} установлена.',
+        updateFailed: 'Не удалось проверить обновления: {reason}.',
+        updateInstallFailed: 'Не удалось установить обновление: {reason}.',
+        updateNever: 'Проверка ещё не выполнялась.',
+        updateCheckedAt: 'Проверено в {time}.',
+        updateHint: 'Плагин сам проверяет GitHub при запуске и раз в несколько часов.',
+        updateRestart: 'Новая версия заработает после перезапуска DeepSeek Harness.',
+        updateNoSource: 'Источник обновлений не настроен.',
+        updateControlFailed: 'Harness не ответил.',
       },
       en: {
         doneTitle: 'Task finished',
@@ -285,6 +307,28 @@ window.__ModuleLoader__.load({
         clear: 'Clear',
         previewSession: 'Example task',
         previewErrorText: 'The model request failed.',
+        updateTitle: 'Update available',
+        updateBody: 'dsh-notify {version} has been released.',
+        updateNow: 'Update',
+        updateDoneTitle: 'Update installed',
+        updateGroup: 'Updates',
+        updateCurrent: 'Installed version',
+        updateStatus: 'Update check',
+        updateCheck: 'Check for updates',
+        updateInstall: 'Install update',
+        updateChecking: 'Checking GitHub…',
+        updateInstalling: 'Downloading and installing…',
+        updateUpToDate: 'You are up to date.',
+        updateAvailable: 'Version {version} is available.',
+        updateInstalled: 'Version {version} is installed.',
+        updateFailed: 'Could not check for updates: {reason}.',
+        updateInstallFailed: 'Could not install the update: {reason}.',
+        updateNever: 'Not checked yet.',
+        updateCheckedAt: 'Checked at {time}.',
+        updateHint: 'The plugin checks GitHub on startup and every few hours.',
+        updateRestart: 'The new version starts working after DeepSeek Harness restarts.',
+        updateNoSource: 'No update source is configured.',
+        updateControlFailed: 'Harness did not answer.',
       },
     }
 
@@ -302,6 +346,8 @@ window.__ModuleLoader__.load({
 .dsh-ntf-kind-done{--dsh-ntf-accent:var(--dsw-alias-state-success-primary)}
 .dsh-ntf-kind-attention{--dsh-ntf-accent:var(--dsw-alias-state-warn-primary)}
 .dsh-ntf-kind-error{--dsh-ntf-accent:var(--dsw-alias-state-error-primary)}
+.dsh-ntf-kind-update{--dsh-ntf-accent:var(--dsw-alias-brand-primary)}
+.dsh-ntf-kind-update-done{--dsh-ntf-accent:var(--dsw-alias-state-success-primary)}
 .dsh-ntf-card{--dsh-ntf-surface:var(--dsw-alias-bg-overlay);--dsh-ntf-text:var(--dsw-alias-label-primary);--dsh-ntf-muted:var(--dsw-alias-label-secondary);--dsh-ntf-edge:var(--dsw-alias-border-l2);--dsh-ntf-chip:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent);--dsh-ntf-chip-hover:color-mix(in srgb, var(--dsw-alias-label-primary) 15%, transparent);position:relative;box-sizing:border-box;width:min(392px,calc(100vw - 32px));overflow:hidden;pointer-events:auto;border:1px solid var(--dsh-ntf-edge);border-radius:13px;background:var(--dsh-ntf-surface);color:var(--dsh-ntf-text);font-family:var(--dsh-ntf-font-family,inherit);font-size:var(--dsh-ntf-font-size,13px);font-style:var(--dsh-ntf-font-style,normal);font-weight:var(--dsh-ntf-font-weight,400);box-shadow:inset 3px 0 0 var(--dsh-ntf-accent),0 20px 44px -22px color-mix(in srgb, var(--dsh-ntf-text) 45%, transparent);animation:dsh-ntf-enter .18s ease-out both}
 .dsh-ntf-card[data-theme="dark"]{--dsh-ntf-surface:#1C1D22;--dsh-ntf-text:#F2F4F7;--dsh-ntf-muted:#A4AAB3;--dsh-ntf-edge:#2E3037;--dsh-ntf-chip:#2A2C33;--dsh-ntf-chip-hover:#34363E}
 .dsh-ntf-card[data-theme="light"]{--dsh-ntf-surface:#FFFFFF;--dsh-ntf-text:#16181D;--dsh-ntf-muted:#626873;--dsh-ntf-edge:#E4E6EB;--dsh-ntf-chip:#F1F2F5;--dsh-ntf-chip-hover:#E8EAEF}
@@ -665,6 +711,19 @@ window.__ModuleLoader__.load({
     /** The localized title, meta line and body for one record. */
     function describe(record) {
       const session = record.sessionTitle !== '' ? record.sessionTitle : t('untitledSession')
+      if (record.kind === 'update') {
+        const latest = typeof record.latestVersion === 'string' ? record.latestVersion : ''
+        const installed = typeof record.currentVersion === 'string' ? record.currentVersion : ''
+        return {
+          title: t('updateTitle'),
+          meta: installed !== '' && latest !== '' ? `${installed} → ${latest}` : latest,
+          body: t('updateBody', { version: latest }),
+        }
+      }
+      if (record.kind === 'update-done') {
+        const version = typeof record.latestVersion === 'string' ? record.latestVersion : ''
+        return { title: t('updateDoneTitle'), meta: version, body: t('updateRestart') }
+      }
       if (record.kind === 'done') {
         const duration = formatDuration(record.durationMs)
         return {
@@ -756,9 +815,14 @@ window.__ModuleLoader__.load({
           : ' dsh-ntf-card--rich'
       const className = `dsh-ntf-card${shape} dsh-ntf-kind-${item.kind}${item.leaving ? ' is-leaving' : ''}`
       const openable = item.sessionId !== ''
+      const updatable = item.kind === 'update'
       const onOpen = event => {
         if (event !== undefined) event.stopPropagation()
         props.onOpen(item)
+      }
+      const onUpdate = event => {
+        if (event !== undefined) event.stopPropagation()
+        if (typeof props.onUpdate === 'function') props.onUpdate(item)
       }
       const keyboard = openable
         ? {
@@ -807,6 +871,9 @@ window.__ModuleLoader__.load({
             info.title,
             item.count > 1 ? h('span', { className: 'dsh-ntf-count' }, `×${item.count}`) : null),
           h('div', { className: 'dsh-ntf-inline' }, info.body)),
+        updatable
+          ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onUpdate }, t('updateNow'))
+          : null,
         close,
         progress)
       }
@@ -828,9 +895,11 @@ window.__ModuleLoader__.load({
             info.title,
             item.count > 1 ? h('span', { className: 'dsh-ntf-count' }, `×${item.count}`) : null),
           h('div', { className: 'dsh-ntf-banner-body' }, info.body)),
-        openable
-          ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onOpen }, t('open'))
-          : null,
+        updatable
+          ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onUpdate }, t('updateNow'))
+          : openable
+            ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onOpen }, t('open'))
+            : null,
         close,
         progress)
       }
@@ -855,7 +924,11 @@ window.__ModuleLoader__.load({
         close),
       h('p', { className: 'dsh-ntf-body' }, info.body),
       h('div', { className: 'dsh-ntf-foot' },
-        openable ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onOpen }, t('open')) : null,
+        updatable
+          ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onUpdate }, t('updateNow'))
+          : openable
+            ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onOpen }, t('open'))
+            : null,
         h('span', { className: 'dsh-ntf-time' }, formatClock(item.at))),
       progress)
     }
@@ -888,6 +961,7 @@ window.__ModuleLoader__.load({
         fontStyle,
         onClose: controller.dismiss,
         onOpen: controller.openFromToast,
+        onUpdate: controller.installUpdateFromToast,
       })))
     }
 
@@ -938,6 +1012,20 @@ window.__ModuleLoader__.load({
         h('div', { className: 'dsh-ntf-row-control' }, props.children))
     }
 
+    /** The one-line status the Updates group shows for the current state. */
+    function updateStatusText(state) {
+      if (state.status === 'checking') return t('updateChecking')
+      if (state.status === 'installing') return t('updateInstalling')
+      if (state.status === 'installed') return t('updateInstalled', { version: state.latest || state.current })
+      if (state.status === 'available') {
+        if (state.installError !== '') return t('updateInstallFailed', { reason: state.installError })
+        return t('updateAvailable', { version: state.latest })
+      }
+      if (state.status === 'error') return t('updateFailed', { reason: state.error })
+      if (state.checkedAt > 0) return t('updateUpToDate')
+      return t('updateNever')
+    }
+
     function SettingsPage(props) {
       const controller = props.controller
       useStore(controller.localeTick)
@@ -945,6 +1033,12 @@ window.__ModuleLoader__.load({
       const history = useStore(controller.history)
       const permission = useStore(controller.permission)
       const nativeAvailable = useStore(controller.nativeState)
+      const update = useStore(controller.updateState)
+      const updateBusy = update.status === 'checking' || update.status === 'installing'
+      React.useEffect(() => {
+        // The page may have been open for hours; read the current status.
+        void controller.refreshUpdate()
+      }, [controller])
       const variant = pick(settings.variant, VARIANTS, DEFAULTS.variant)
       const position = pick(settings.position, POSITIONS, DEFAULTS.position)
       const duration = pick(settings.duration, DURATIONS, DEFAULTS.duration)
@@ -965,6 +1059,39 @@ window.__ModuleLoader__.load({
         h('div', { className: 'dsh-ntf-settings-scroll' },
           h('div', { className: 'dsh-ntf-settings-inner' },
             h('p', { className: 'dsh-ntf-lead' }, t('settingsLead')),
+            h('section', { className: 'dsh-ntf-group' },
+              h('h2', { className: 'dsh-ntf-group-title' }, t('updateGroup')),
+              h('div', { className: 'dsh-ntf-group-body' },
+                h(Row, {
+                  title: t('updateCurrent'),
+                  description: update.source !== '' ? update.source : undefined,
+                }, h('span', { className: 'dsh-ntf-row-title' }, update.current !== '' ? update.current : '—')),
+                h(Row, {
+                  title: t('updateStatus'),
+                  description: `${updateStatusText(update)}${update.checkedAt > 0
+                    ? ` ${t('updateCheckedAt', { time: formatClock(update.checkedAt) })}`
+                    : ''}`,
+                },
+                h('button', {
+                  type: 'button',
+                  className: 'dsh-ntf-preview',
+                  disabled: updateBusy,
+                  onClick: () => {
+                    void controller.checkUpdates()
+                  },
+                }, t('updateCheck')),
+                update.status === 'available'
+                  ? h('button', {
+                      type: 'button',
+                      className: 'dsh-ntf-action',
+                      disabled: updateBusy,
+                      onClick: () => {
+                        void controller.installUpdate()
+                      },
+                    }, t('updateInstall'))
+                  : null),
+                h('p', { className: 'dsh-ntf-note' },
+                  update.restartRequired ? t('updateRestart') : t('updateHint')))),
             h('section', { className: 'dsh-ntf-group' },
               h('h2', { className: 'dsh-ntf-group-title' }, t('groupLook')),
               h('div', { className: 'dsh-ntf-look' },
@@ -1202,6 +1329,19 @@ window.__ModuleLoader__.load({
       const activeSession = createStore('')
       /** Whether the native above-all-windows card is available in this Host. */
       const nativeState = createStore(false)
+      /** Self-update status mirrored from the Host. */
+      const updateState = createStore({
+        status: 'idle',
+        current: '',
+        latest: '',
+        checkedAt: 0,
+        error: '',
+        installError: '',
+        restartRequired: false,
+        source: '',
+      })
+      /** Releases already offered as a toast in this page. */
+      const offeredUpdates = new Set()
       const localeTickStore = createStore(0)
       const permissionStore = createStore(
         typeof Notification === 'function' ? Notification.permission : 'unsupported',
@@ -1486,7 +1626,7 @@ window.__ModuleLoader__.load({
           ...record,
           uid: record.uid,
           createdAt: Date.now(),
-          duration: record.sticky === true ? 0 : config.duration,
+          duration: record.sticky === true ? 0 : (Number.isFinite(options.duration) ? options.duration : config.duration),
           unseen: options.unseen === true,
           leaving: false,
           count: 1,
@@ -1509,6 +1649,109 @@ window.__ModuleLoader__.load({
         if (toast.unseen === true) return
         if (!(toast.duration > 0)) return
         setTimer(`auto:${toast.uid}`, () => dismiss(toast.uid), toast.duration)
+      }
+
+      /** Mirror the Host's self-update status and offer a discovered release. */
+      function applyUpdateState(next) {
+        if (next === null || typeof next !== 'object') return undefined
+        const state = {
+          status: typeof next.status === 'string' ? next.status : 'idle',
+          current: typeof next.current === 'string' ? next.current : '',
+          latest: typeof next.latest === 'string' ? next.latest : '',
+          checkedAt: Number.isFinite(next.checkedAt) ? next.checkedAt : 0,
+          error: typeof next.error === 'string' ? next.error : '',
+          installError: typeof next.installError === 'string' ? next.installError : '',
+          restartRequired: next.restartRequired === true,
+          source: typeof next.source === 'string' ? next.source : '',
+        }
+        updateState.set(state)
+        if (state.status === 'available' && state.latest !== '') offerUpdate(state.latest, state.current)
+        return state
+      }
+
+      /** Show the update toast once per release, respecting the toast settings. */
+      function offerUpdate(latest, current) {
+        if (offeredUpdates.has(latest)) return
+        offeredUpdates.add(latest)
+        const config = settings.get()
+        if (config.notifications !== true || config.gameMode === true) return
+        const windowActive = typeof document !== 'undefined'
+          && document.hasFocus()
+          && document.visibilityState !== 'hidden'
+        uid += 1
+        pushToast({
+          uid,
+          kind: 'update',
+          sessionId: '',
+          sessionTitle: '',
+          reason: 'update',
+          tool: '',
+          question: '',
+          message: '',
+          durationMs: 0,
+          at: Date.now(),
+          sticky: false,
+          latestVersion: latest,
+          currentVersion: current,
+        }, config, { duration: 15_000, unseen: !windowActive })
+      }
+
+      /** Read the current self-update status without asking GitHub. */
+      async function refreshUpdate() {
+        const result = await postControl({ type: 'update/state' })
+        if (result !== null && result.ok === true) applyUpdateState(result.state)
+      }
+
+      /** Ask the Host to compare the installed package with GitHub. */
+      async function checkUpdates() {
+        updateState.set({ ...updateState.get(), status: 'checking', error: '', installError: '' })
+        const result = await postControl({ type: 'update/check' })
+        if (result !== null && result.ok === true) {
+          applyUpdateState(result.state)
+          return
+        }
+        updateState.set({
+          ...updateState.get(),
+          status: 'error',
+          error: t('updateControlFailed'),
+          checkedAt: Date.now(),
+        })
+      }
+
+      /** Download and install the offered release; a restart applies it. */
+      async function installUpdate() {
+        if (updateState.get().status === 'installing') return
+        updateState.set({ ...updateState.get(), status: 'installing', installError: '' })
+        const result = await postControl({ type: 'update/install' })
+        if (result === null || result.ok !== true) {
+          updateState.set({ ...updateState.get(), status: 'available', installError: t('updateControlFailed') })
+          return
+        }
+        const state = applyUpdateState(result.state)
+        if (state !== undefined && state.status === 'installed') {
+          uid += 1
+          pushToast({
+            uid,
+            kind: 'update-done',
+            sessionId: '',
+            sessionTitle: '',
+            reason: 'update',
+            tool: '',
+            question: '',
+            message: '',
+            durationMs: 0,
+            at: Date.now(),
+            sticky: false,
+            latestVersion: state.latest,
+            currentVersion: state.current,
+          }, settings.get(), { duration: 15_000 })
+        }
+      }
+
+      /** The toast action: close the offer, then install. */
+      function installUpdateFromToast(item) {
+        if (item !== null && typeof item === 'object' && item.uid !== undefined) dismiss(item.uid)
+        void installUpdate()
       }
 
       function systemNotify(record) {
@@ -1549,6 +1792,21 @@ window.__ModuleLoader__.load({
               if (toast.sessionId === item.sessionId && toast.leaving !== true) dismiss(toast.uid)
             }
           }
+          return
+        }
+        // A newer release discovered by the Host.
+        if (item.kind === 'update') {
+          const latest = typeof item.latestVersion === 'string' ? item.latestVersion : ''
+          if (latest !== '') {
+            const current = typeof item.currentVersion === 'string' ? item.currentVersion : ''
+            updateState.set({ ...updateState.get(), status: 'available', latest, current: current || updateState.get().current })
+            offerUpdate(latest, current)
+          }
+          return
+        }
+        // Another page installed the release; refresh without announcing it.
+        if (item.kind === 'update-installed') {
+          void refreshUpdate()
           return
         }
         const key = typeof item.key === 'string' ? item.key : ''
@@ -1723,6 +1981,11 @@ window.__ModuleLoader__.load({
         permission: permissionStore,
         nativeState,
         update,
+        updateState,
+        checkUpdates,
+        installUpdate,
+        installUpdateFromToast,
+        refreshUpdate,
         dismiss,
         openFromToast,
         setActiveSession,
@@ -1736,6 +1999,8 @@ window.__ModuleLoader__.load({
         ingest,
         start: () => {
           void syncPresentation()
+          // The Host may have discovered a release before this page connected.
+          void refreshUpdate()
           // A slow Host boot can miss the first sync; retry once, quietly.
           setTimeout(() => {
             if (!disposed) void syncPresentation()

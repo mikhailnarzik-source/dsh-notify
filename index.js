@@ -16,9 +16,9 @@
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const name = 'notify'
@@ -29,6 +29,9 @@ export const FEED_PATH = '/api/dsh-notify.feed'
 
 /** Authenticated Fetch route for presentation sync and native-card control. */
 export const CONTROL_PATH = '/api/dsh-notify.control'
+
+/** This installed package, the directory a self-update replaces files in. */
+export const PACKAGE_DIR = dirname(fileURLToPath(import.meta.url))
 
 /** At most this many always-on-top cards live at once. */
 export const MAX_NATIVE_CARDS = 3
@@ -57,6 +60,36 @@ export const ERROR_DEDUPE_MS = 4_000
 /** A Session title is reused for this long before the log is read again. */
 export const TITLE_TTL_MS = 60_000
 
+/** GitHub repository this bundle updates itself from. */
+export const UPDATE_OWNER = 'mikhailnarzik-source'
+export const UPDATE_REPO = 'dsh-notify'
+export const UPDATE_BRANCH = 'main'
+
+/** First automatic check after the Host starts. */
+export const UPDATE_CHECK_DELAY_MS = 6_000
+
+/** How often a long-running Host checks again. */
+export const UPDATE_RECHECK_MS = 6 * 60 * 60 * 1_000
+
+/** Deadline of one file download during a self-update. */
+export const UPDATE_TIMEOUT_MS = 20_000
+
+/**
+ * Files a self-update replaces. The package contains nothing else at runtime;
+ * docs and test tools are left alone so an update cannot break them.
+ */
+export const UPDATE_FILES = [
+  'package.json',
+  'index.js',
+  'client.js',
+  'cordis.patch.yml',
+  'icon.svg',
+  'locale/en.json',
+  'locale/ru.json',
+  'native/notify.ps1',
+  'README.md',
+]
+
 /** Collapse whitespace and cap a free-text fragment for a toast. */
 export function clip(value, max = MAX_TEXT) {
   const text = typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : ''
@@ -71,6 +104,42 @@ export function errorText(error) {
   if (typeof error === 'object' && typeof error.message === 'string') return clip(error.message)
   if (typeof error === 'object' && typeof error.reason === 'string') return clip(error.reason)
   return clip(String(error))
+}
+
+/** A comparable semantic version, or null when the text is not one. */
+export function parseVersion(value) {
+  const text = typeof value === 'string' ? value.trim().replace(/^v/u, '') : ''
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/u.exec(text)
+  if (match === null) return null
+  return {
+    parts: [Number(match[1]), Number(match[2]), Number(match[3])],
+    prerelease: match[4] ?? '',
+  }
+}
+
+/** Negative, zero or positive when `left` is older, equal or newer than `right`. */
+export function compareVersions(left, right) {
+  const a = parseVersion(left)
+  const b = parseVersion(right)
+  if (a === null || b === null) return 0
+  for (let index = 0; index < 3; index += 1) {
+    if (a.parts[index] !== b.parts[index]) return a.parts[index] < b.parts[index] ? -1 : 1
+  }
+  if (a.prerelease === b.prerelease) return 0
+  if (a.prerelease === '') return 1
+  if (b.prerelease === '') return -1
+  return a.prerelease < b.prerelease ? -1 : 1
+}
+
+/** The GitHub repository a package updates itself from, or this bundle's own. */
+export function updateSourceOf(pkg) {
+  const raw = pkg !== null && typeof pkg === 'object'
+    ? (typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url)
+    : undefined
+  const text = typeof raw === 'string' ? raw : ''
+  const match = /github\.com[/:]([^/\s]+)\/([^/\s#?]+?)(?:\.git)?(?:[/#?].*)?$/u.exec(text)
+  if (match !== null) return { owner: match[1], repo: match[2], branch: UPDATE_BRANCH }
+  return { owner: UPDATE_OWNER, repo: UPDATE_REPO, branch: UPDATE_BRANCH }
 }
 
 /** JSON answer with the no-store policy a live feed deserves. */
@@ -157,6 +226,8 @@ export function apply(ctx) {
       action: typeof item.action === 'string' ? item.action : '',
       token: typeof item.token === 'string' ? item.token : '',
       nativeFallback: item.nativeFallback === true,
+      latestVersion: typeof item.latestVersion === 'string' ? item.latestVersion : '',
+      currentVersion: typeof item.currentVersion === 'string' ? item.currentVersion : '',
     }
     if (item.live === true && record.kind === 'attention') {
       liveAttentions.push({ sessionId: record.sessionId, reason: record.reason, at: record.at })
@@ -168,6 +239,192 @@ export function apply(ctx) {
     waiters.clear()
     for (const wake of parked) wake()
     return record
+  }
+
+  // --- self-update ---------------------------------------------------------
+  // The profile installs this bundle from GitHub as a git dependency, which the
+  // plugin manager only updates as a registry package. The Host half therefore
+  // checks the repository itself, offers a newer release to the page and
+  // replaces the package files on request; a restart applies the new code.
+
+  const ownPackage = (() => {
+    try {
+      return JSON.parse(readFileSync(join(PACKAGE_DIR, 'package.json'), 'utf8'))
+    } catch {
+      return {}
+    }
+  })()
+  const updateSource = updateSourceOf(ownPackage)
+  /** Current self-update status; the page mirrors it. */
+  const update = {
+    status: 'idle',
+    current: typeof ownPackage.version === 'string' ? ownPackage.version : '',
+    latest: '',
+    checkedAt: 0,
+    error: '',
+    installError: '',
+    restartRequired: false,
+  }
+  /** Pending check, so two callers share one request. */
+  let checkPromise
+  /** Pending install, so two callers share one download. */
+  let installPromise
+  /** Versions already offered as a toast, so one release is announced once. */
+  const offeredVersions = new Set()
+
+  /** A plain copy of the update status for the control route. */
+  function updateSnapshot() {
+    return {
+      status: update.status,
+      current: update.current,
+      latest: update.latest,
+      checkedAt: update.checkedAt,
+      error: update.error,
+      installError: update.installError,
+      restartRequired: update.restartRequired,
+      source: `${updateSource.owner}/${updateSource.repo}`,
+    }
+  }
+
+  /** Raw file URL in the update repository. */
+  function updateFileUrl(path) {
+    return `https://raw.githubusercontent.com/${updateSource.owner}/${updateSource.repo}/${updateSource.branch}/${path}`
+  }
+
+  /** One update file as text, with a bounded wait. */
+  async function fetchUpdateFile(path) {
+    if (typeof fetch !== 'function') throw new Error('no fetch in this Host')
+    const response = await fetch(updateFileUrl(path), {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS),
+      headers: { 'user-agent': 'dsh-notify-updater', accept: '*/*' },
+    })
+    if (response.ok !== true) throw new Error(`${path}: HTTP ${response.status}`)
+    return await response.text()
+  }
+
+  /** Compare the installed version with GitHub, sharing one in-flight request. */
+  async function runUpdateCheck() {
+    if (update.status === 'installing' || update.restartRequired === true) return updateSnapshot()
+    if (checkPromise !== undefined) return await checkPromise
+    update.status = 'checking'
+    update.error = ''
+    checkPromise = (async () => {
+      try {
+        const text = await fetchUpdateFile('package.json')
+        const remote = JSON.parse(text)
+        const version = remote !== null && typeof remote === 'object' ? remote.version : undefined
+        if (typeof version !== 'string' || parseVersion(version) === null) throw new Error('remote manifest has no version')
+        update.latest = version
+        update.checkedAt = Date.now()
+        if (compareVersions(version, update.current) > 0) {
+          update.status = 'available'
+          if (!offeredVersions.has(version)) {
+            offeredVersions.add(version)
+            publish({ kind: 'update', latestVersion: version, currentVersion: update.current, reason: 'update' })
+          }
+        } else {
+          update.status = 'idle'
+        }
+      } catch (error) {
+        update.error = errorText(error)
+        update.checkedAt = Date.now()
+        // A transient failure must not withdraw a release already offered.
+        update.status = update.latest !== '' && compareVersions(update.latest, update.current) > 0 ? 'available' : 'error'
+      } finally {
+        checkPromise = undefined
+      }
+      return updateSnapshot()
+    })()
+    return await checkPromise
+  }
+
+  /** Replace one package file atomically, so a failed write cannot truncate it. */
+  function writeUpdateBytes(path, bytes) {
+    const target = join(PACKAGE_DIR, path)
+    const temporary = `${target}.update-${process.pid}`
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(temporary, bytes)
+    try {
+      renameSync(temporary, target)
+    } catch {
+      writeFileSync(target, bytes)
+      rmSync(temporary, { force: true })
+    }
+  }
+
+  /** Download the release and replace the package files, rolling back on failure. */
+  async function installUpdate() {
+    if (installPromise !== undefined) return await installPromise
+    installPromise = (async () => {
+      try {
+        if (update.status !== 'available') await runUpdateCheck()
+        if (update.status !== 'available' || update.latest === '') return updateSnapshot()
+        const target = update.latest
+        update.status = 'installing'
+        update.installError = ''
+        const files = new Map()
+        for (const path of UPDATE_FILES) files.set(path, await fetchUpdateFile(path))
+        const manifest = JSON.parse(files.get('package.json'))
+        if (manifest === null || typeof manifest !== 'object' || manifest.name !== 'dsh-notify') {
+          throw new Error('downloaded package is not dsh-notify')
+        }
+        const version = typeof manifest.version === 'string' ? manifest.version : ''
+        if (compareVersions(version, target) < 0) throw new Error('downloaded version is older than offered')
+        if (String(files.get('index.js') ?? '').trim() === '' || String(files.get('client.js') ?? '').trim() === '') {
+          throw new Error('downloaded package is incomplete')
+        }
+        // Keep every current file in memory until the new set is on disk.
+        const previous = new Map()
+        for (const path of UPDATE_FILES) {
+          try {
+            previous.set(path, readFileSync(join(PACKAGE_DIR, path)))
+          } catch {
+            previous.set(path, null)
+          }
+        }
+        const written = []
+        try {
+          for (const path of UPDATE_FILES) {
+            if (path === 'package.json') continue
+            writeUpdateBytes(path, Buffer.from(String(files.get(path) ?? ''), 'utf8'))
+            written.push(path)
+          }
+          // The manifest goes last: a half-written update must not claim a new version.
+          writeUpdateBytes('package.json', Buffer.from(String(files.get('package.json')), 'utf8'))
+          written.push('package.json')
+          const stored = JSON.parse(readFileSync(join(PACKAGE_DIR, 'package.json'), 'utf8'))
+          if (stored.version !== version) throw new Error('package.json did not persist')
+        } catch (error) {
+          for (const path of written.reverse()) {
+            const old = previous.get(path)
+            try {
+              if (old === null || old === undefined) rmSync(join(PACKAGE_DIR, path), { force: true })
+              else writeUpdateBytes(path, old)
+            } catch {
+              // Rolling back is best effort; the next update can repair the file.
+            }
+          }
+          throw error
+        }
+        update.current = version
+        update.latest = version
+        update.status = 'installed'
+        update.restartRequired = true
+        update.checkedAt = Date.now()
+        offeredVersions.add(version)
+        // Other open pages refresh their status from this record.
+        publish({ kind: 'update-installed', latestVersion: version, currentVersion: version, reason: 'update' })
+      } catch (error) {
+        update.installError = errorText(error)
+        update.status = update.latest !== '' && compareVersions(update.latest, update.current) > 0 ? 'available' : 'error'
+        if (update.status === 'error') update.error = update.installError
+      } finally {
+        installPromise = undefined
+      }
+      return updateSnapshot()
+    })()
+    return await installPromise
   }
 
   /** The Session store, when this composition mounts one. */
@@ -801,9 +1058,37 @@ export function apply(ctx) {
       if (body.type === 'native') {
         return jsonResponse({ ok: showNativeCard(body), native: nativeSupported() })
       }
+      // Self-update: the page reads the status, asks for a check, or installs.
+      if (body.type === 'update/state') {
+        return jsonResponse({ ok: true, state: updateSnapshot() })
+      }
+      if (body.type === 'update/check') {
+        return jsonResponse({ ok: true, state: await runUpdateCheck() })
+      }
+      if (body.type === 'update/install') {
+        return jsonResponse({ ok: true, state: await installUpdate() })
+      }
       return jsonResponse({ ok: false })
     },
   }), 'notify: native control')
+
+  // GitHub is asked shortly after startup and then every few hours; a discovered
+  // release is offered to every open page through the feed.
+  ctx.effect(() => {
+    let stopped = false
+    const startup = setTimeout(() => {
+      if (!stopped) void runUpdateCheck()
+    }, UPDATE_CHECK_DELAY_MS)
+    const periodic = setInterval(() => {
+      if (!stopped) void runUpdateCheck()
+    }, UPDATE_RECHECK_MS)
+    if (typeof periodic.unref === 'function') periodic.unref()
+    return () => {
+      stopped = true
+      clearTimeout(startup)
+      clearInterval(periodic)
+    }
+  }, 'notify: update checks')
 
   // A page that was already open when an interaction started, or a notice the
   // live detection missed, still reaches the user: the sweep republishes every
