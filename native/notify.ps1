@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory = $true)][string]$PayloadBase64,
   # Exercises the "open" action without a pointer; never passed by the Host.
   [switch]$SelfTest
@@ -281,13 +281,18 @@ function Invoke-Open {
     foreach ($target in $processes) {
       $handle = $target.MainWindowHandle
       if ($handle -eq [IntPtr]::Zero) { continue }
-      # Synchronous restore first: SetForegroundWindow on a still-minimized window
-      # only flashes the taskbar.
-      [void][DshNotifyNative]::ShowWindow($handle, 9)
+      # Restore only a minimized window: SW_RESTORE would also un-maximize a
+      # fullscreen or maximized window, and the person must get it back exactly
+      # as it was.
+      if ([DshNotifyNative]::IsIconic($handle)) {
+        [void][DshNotifyNative]::ShowWindow($handle, 9)
+      }
       [void][DshNotifyNative]::BringWindowToTop($handle)
-      [void][DshNotifyNative]::SetForegroundWindow($handle)
       if ([DshNotifyNative]::GetForegroundWindow() -ne $handle) {
-        try { [DshNotifyNative]::SwitchToThisWindow($handle, $true) } catch {
+        [void][DshNotifyNative]::SetForegroundWindow($handle)
+        if ([DshNotifyNative]::GetForegroundWindow() -ne $handle) {
+          try { [DshNotifyNative]::SwitchToThisWindow($handle, $true) } catch {
+          }
         }
       }
       if ([DshNotifyNative]::GetForegroundWindow() -eq $handle) { break }
