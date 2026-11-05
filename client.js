@@ -1299,6 +1299,10 @@ window.__ModuleLoader__.load({
       /** Draw a card above every application; fall back to the held in-app toast. */
       async function showNative(record, options = {}) {
         const info = describe(record)
+        /** The page title names this window when Harness runs in a browser tab. */
+        const pageTitle = typeof document !== 'undefined' && typeof document.title === 'string'
+          ? document.title.trim()
+          : ''
         const result = await postControl({
           type: 'native',
           token: `n${record.uid}-${Date.now()}`,
@@ -1307,6 +1311,7 @@ window.__ModuleLoader__.load({
           title: info.title,
           body: info.body,
           meta: info.meta ?? '',
+          windowTitle: pageTitle,
           record: {
             kind: record.kind,
             sessionId: record.sessionId,
@@ -1536,11 +1541,9 @@ window.__ModuleLoader__.load({
         // The companion reported that "open" was pressed on a native card.
         if (item.kind === 'action') {
           if (item.action === 'open' && typeof item.sessionId === 'string' && item.sessionId !== '') {
-            try {
-              window.focus()
-            } catch {
-              // The companion already raised the window.
-            }
+            // The Windows companion already raised the target window; focusing
+            // from here would let another connected client (a browser tab of
+            // the same Host) pull its own window in front of the app.
             openSession(item.sessionId)
             for (const toast of toasts.get()) {
               if (toast.sessionId === item.sessionId && toast.leaving !== true) dismiss(toast.uid)

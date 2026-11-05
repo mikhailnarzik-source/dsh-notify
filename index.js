@@ -410,10 +410,13 @@ export function apply(ctx) {
     const foreground = palette.foreground
     const tail = foreground.length === 9 ? foreground.slice(-6) : 'F2F3F5'
     const token = typeof request.token === 'string' && request.token !== '' ? request.token : `n${Date.now()}`
+    /** The page's own title, for recognizing its browser window when the app is closed. */
+    const windowTitle = typeof request.windowTitle === 'string' ? request.windowTitle.trim().slice(0, 160) : ''
     const payload = {
       title,
       body: clip(String(request.body ?? ''), 200),
       meta: clip(String(request.meta ?? ''), 120),
+      windowTitle,
       accent: palette[kind],
       background: palette.background,
       foreground,
