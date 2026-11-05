@@ -1,4 +1,4 @@
-﻿param(
+param(
   [Parameter(Mandatory = $true)][string]$PayloadBase64,
   # Exercises the "open" action without a pointer; never passed by the Host.
   [switch]$SelfTest,
@@ -125,6 +125,8 @@ public static class DshNotifyNative {
   [DllImport("user32.dll")]
   static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
   [DllImport("user32.dll")]
+  static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
+  [DllImport("user32.dll")]
   static extern void SwitchToThisWindow(IntPtr hWnd, bool altTab);
   [DllImport("kernel32.dll")]
   static extern uint GetCurrentThreadId();
@@ -183,6 +185,9 @@ public static class DshNotifyNative {
     if (hWnd == IntPtr.Zero) return false;
     if (IsIconic(hWnd)) ShowWindow(hWnd, 9);
     else ShowWindow(hWnd, 5);
+    // Raise above ordinary windows first: even when Windows refuses activation,
+    // the window still becomes visible instead of leaving the last app in front.
+    SetWindowPos(hWnd, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0040);
     IntPtr foreground = GetForegroundWindow();
     uint foregroundPid = 0;
     uint foregroundThread = foreground == IntPtr.Zero ? 0 : GetWindowThreadProcessId(foreground, out foregroundPid);
@@ -198,7 +203,9 @@ public static class DshNotifyNative {
     } finally {
       if (attached) AttachThreadInput(selfThread, foregroundThread, false);
     }
-    return GetForegroundWindow() == hWnd;
+    SetWindowPos(hWnd, new IntPtr(-2), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+    // A window the person can see is a success even if activation was refused.
+    return GetForegroundWindow() == hWnd || IsWindowVisible(hWnd);
   }
 }
 "@
@@ -353,23 +360,32 @@ function Get-OpenPlan {
 # The executable of the running app is preferred: it needs no protocol handler
 # and cannot pop a Windows "how do you want to open this" picker.
 function Start-AppOpen {
-  foreach ($processId in @(Get-AppPids)) {
-    try {
-      $exe = (Get-Process -Id $processId -ErrorAction Stop).Path
-      if (-not [string]::IsNullOrWhiteSpace($exe) -and (Test-Path -LiteralPath $exe)) {
-        Start-Process -FilePath $exe -ErrorAction Stop
-        return $true
-      }
-    } catch {
-      # One unreadable process must not stop the next.
-    }
-  }
-  if (-not (Test-DshProtocol)) { return $false }
+  # The Host runs as Electron in Node mode, so its environment carries
+  # ELECTRON_RUN_AS_NODE=1. Inherited by Start-Process it would start the app as
+  # a headless Node process instead of the GUI, so it is removed for this launch.
+  $runAsNode = $env:ELECTRON_RUN_AS_NODE
   try {
-    Start-Process -FilePath 'dsh://open' -ErrorAction Stop
-    return $true
-  } catch {
-    return $false
+    Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+    foreach ($processId in @(Get-AppPids)) {
+      try {
+        $exe = (Get-Process -Id $processId -ErrorAction Stop).Path
+        if (-not [string]::IsNullOrWhiteSpace($exe) -and (Test-Path -LiteralPath $exe)) {
+          Start-Process -FilePath $exe -ErrorAction Stop
+          return $true
+        }
+      } catch {
+        # One unreadable process must not stop the next.
+      }
+    }
+    if (-not (Test-DshProtocol)) { return $false }
+    try {
+      Start-Process -FilePath 'dsh://open' -ErrorAction Stop
+      return $true
+    } catch {
+      return $false
+    }
+  } finally {
+    if ($null -ne $runAsNode) { $env:ELECTRON_RUN_AS_NODE = $runAsNode }
   }
 }
 
@@ -392,16 +408,30 @@ function Test-DshProtocol {
   return $false
 }
 
+# Append one line to the update/open diagnostic log, never failing the card.
+function Write-OpenLog([string]$text) {
+  try {
+    $dir = Join-Path $env:TEMP 'dsh-notify'
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    Add-Content -LiteralPath (Join-Path $dir 'open.log') -Value ('{0:yyyy-MM-dd HH:mm:ss.fff} {1}' -f (Get-Date), $text) -Encoding UTF8
+  } catch {
+  }
+}
+
 function Show-TargetWindow {
   $plan = Get-OpenPlan
   if ($plan.mode -eq 'app') {
     if ($plan.hwnd -ne 0 -and $script:windowApi) {
-      if ([DshNotifyNative]::Focus([IntPtr]$plan.hwnd)) { return }
+      $focused = [DshNotifyNative]::Focus([IntPtr]$plan.hwnd)
+      if ($focused) { return }
+      Write-OpenLog ('focus failed hwnd={0}' -f $plan.hwnd)
     }
-    if (-not (Start-AppOpen)) { return }
+    $launched = Start-AppOpen
+    Write-OpenLog ('launch ok={0}' -f $launched)
+    if (-not $launched) { return }
     # The application was asked to show itself; give it a moment, then make sure
     # the restored window really is in front.
-    $deadline = [DateTime]::UtcNow.AddMilliseconds(2500)
+    $deadline = [DateTime]::UtcNow.AddMilliseconds(5000)
     do {
       Start-Sleep -Milliseconds 120
       $target = Select-AppWindow (Get-WindowRows) @(Get-AppPids)
@@ -410,6 +440,7 @@ function Show-TargetWindow {
         return
       }
     } while ([DateTime]::UtcNow -lt $deadline)
+    Write-OpenLog 'timeout waiting for an app window'
     return
   }
   if ($plan.mode -eq 'browser' -and $plan.hwnd -ne 0 -and $script:windowApi) {
