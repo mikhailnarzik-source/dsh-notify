@@ -15,11 +15,26 @@
  * no model request reads them.
  */
 
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 export const name = 'notify'
 export const inject = ['connection']
 
 /** Authenticated Fetch route the Client half long-polls. */
 export const FEED_PATH = '/api/dsh-notify.feed'
+
+/** Authenticated Fetch route for presentation sync and native-card control. */
+export const CONTROL_PATH = '/api/dsh-notify.control'
+
+/** At most this many always-on-top cards live at once. */
+export const MAX_NATIVE_CARDS = 3
+
+/** The Windows companion that draws the card above every other application. */
+const NATIVE_SCRIPT = fileURLToPath(new URL('./native/notify.ps1', import.meta.url))
 
 /** Longest wait for a Session title before the notice goes out without it. */
 export const TITLE_WAIT_MS = 400
@@ -99,6 +114,28 @@ export function apply(ctx) {
   const publishedPending = new Set()
   /** Live attention records, so a sweep does not repeat one the page already got. */
   const liveAttentions = []
+  /** How the page wants a native card to look; default dark, top-right. */
+  let nativePresentation = {
+    enabled: true,
+    gameMode: false,
+    corner: 'top-right',
+    durationMs: 6000,
+    width: 384,
+    labels: { open: 'Перейти', dismiss: 'Закрыть' },
+    fonts: { family: 'Segoe UI', size: 13, weight: 400, italic: false },
+    palette: {
+      background: '#F21E1F24',
+      foreground: '#F2F3F5',
+      muted: '#9AA0A6',
+      border: '#33FFFFFF',
+      done: '#38C98A',
+      attention: '#E8B341',
+      error: '#E05B5B',
+    },
+  }
+  /** Live always-on-top cards, keyed by the page's token. */
+  const nativeCards = new Map()
+  let nativeOffset = 0
 
   /** Publish one record, waking every parked poll. */
   function publish(item) {
@@ -117,6 +154,9 @@ export function apply(ctx) {
       key: typeof item.key === 'string' ? item.key : '',
       reminder: item.reminder === true,
       sticky: item.sticky === true,
+      action: typeof item.action === 'string' ? item.action : '',
+      token: typeof item.token === 'string' ? item.token : '',
+      nativeFallback: item.nativeFallback === true,
     }
     if (item.live === true && record.kind === 'attention') {
       liveAttentions.push({ sessionId: record.sessionId, reason: record.reason, at: record.at })
@@ -321,10 +361,174 @@ export function apply(ctx) {
     attentionTimers.clear()
   }, 'notify: attention timers')
 
-  // Approvals and questions are Agent-scoped waterfalls that a shipped answerer
-  // claims, so an observer there sees nothing. Their durable audit events are a
-  // reliable seam instead: `approval/asked` and the `ask_user_question` call are
-  // committed when the person is actually asked.
+  /** Whether this Host can draw an always-on-top card on this platform. */
+  function nativeSupported() {
+    return process.platform === 'win32' && existsSync(NATIVE_SCRIPT)
+  }
+
+  /** Keep only what the companion can render, with bounded numbers and colors. */
+  function sanitizePresentation(value) {
+    const base = nativePresentation
+    if (value === null || typeof value !== 'object') return base
+    const corners = ['top-right', 'top-left', 'bottom-right', 'bottom-left']
+    const labels = value.labels !== null && typeof value.labels === 'object' ? value.labels : {}
+    const next = {
+      enabled: value.enabled !== false,
+      gameMode: value.gameMode === true,
+      corner: corners.includes(value.corner) ? value.corner : base.corner,
+      durationMs: Number.isFinite(value.durationMs) ? Math.max(0, Math.min(60_000, Math.round(value.durationMs))) : base.durationMs,
+      width: Number.isFinite(value.width) ? Math.max(260, Math.min(560, Math.round(value.width))) : base.width,
+      labels: {
+        open: clip(String(labels.open ?? base.labels.open), 24),
+        dismiss: clip(String(labels.dismiss ?? base.labels.dismiss), 24),
+      },
+      fonts: {
+        family: clip(String(value.fonts?.family ?? base.fonts.family), 48),
+        size: Number.isFinite(value.fonts?.size) ? Math.max(9, Math.min(24, Math.round(value.fonts.size))) : base.fonts.size,
+        weight: value.fonts?.weight === 600 ? 600 : 400,
+        italic: value.fonts?.italic === true,
+      },
+      palette: { ...base.palette },
+    }
+    const palette = value.palette
+    if (palette !== null && typeof palette === 'object') {
+      for (const key of ['background', 'foreground', 'muted', 'border', 'done', 'attention', 'error']) {
+        const raw = palette[key]
+        if (typeof raw === 'string' && /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/u.test(raw)) next.palette[key] = raw
+      }
+    }
+    return next
+  }
+
+  /** Ask the Windows companion to draw one card above every other application. */
+  function showNativeCard(request) {
+    if (!nativeSupported() || nativePresentation.enabled !== true || nativePresentation.gameMode === true) return false
+    const title = clip(String(request.title ?? ''), 120)
+    if (title === '') return false
+    const kind = request.kind === 'attention' || request.kind === 'error' ? request.kind : 'done'
+    const palette = nativePresentation.palette
+    const foreground = palette.foreground
+    const tail = foreground.length === 9 ? foreground.slice(-6) : 'F2F3F5'
+    const token = typeof request.token === 'string' && request.token !== '' ? request.token : `n${Date.now()}`
+    const payload = {
+      title,
+      body: clip(String(request.body ?? ''), 200),
+      meta: clip(String(request.meta ?? ''), 120),
+      accent: palette[kind],
+      background: palette.background,
+      foreground,
+      muted: palette.muted,
+      border: palette.border,
+      closeBackground: `#26${tail}`,
+      closeHoverBackground: `#4D${tail}`,
+      openLabel: nativePresentation.labels.open,
+      dismissLabel: nativePresentation.labels.dismiss,
+      fontFamily: nativePresentation.fonts.family,
+      bodySize: nativePresentation.fonts.size,
+      titleSize: Math.round(nativePresentation.fonts.size * 1.08 * 10) / 10,
+      metaSize: Math.round(nativePresentation.fonts.size * 0.86 * 10) / 10,
+      weight: nativePresentation.fonts.weight,
+      italic: nativePresentation.fonts.italic,
+      corner: nativePresentation.corner,
+      offset: nativeOffset % MAX_NATIVE_CARDS,
+      width: nativePresentation.width,
+      durationMs: nativePresentation.durationMs,
+    }
+    nativeOffset += 1
+    const safeToken = token.replace(/[^a-zA-Z0-9._-]/gu, '')
+    const actionFile = join(tmpdir(), 'dsh-notify', `${safeToken}.action`)
+    try {
+      mkdirSync(join(tmpdir(), 'dsh-notify'), { recursive: true })
+      rmSync(actionFile, { force: true })
+    } catch {
+      // The exit code still carries the click.
+    }
+    payload.actionFile = actionFile
+    const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
+    let child
+    try {
+      child = spawn('powershell.exe', [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-STA',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        NATIVE_SCRIPT,
+        '-PayloadBase64',
+        encoded,
+      ], { windowsHide: true, stdio: 'ignore' })
+    } catch {
+      return false
+    }
+    const sessionId = typeof request.sessionId === 'string' ? request.sessionId : ''
+    const entry = {
+      child,
+      sessionId,
+      actionFile,
+      record: request.record !== null && typeof request.record === 'object' ? request.record : null,
+    }
+    nativeCards.set(token, entry)
+    if (nativeCards.size > MAX_NATIVE_CARDS) {
+      const oldestKey = nativeCards.keys().next().value
+      if (oldestKey !== undefined && oldestKey !== token) {
+        const oldest = nativeCards.get(oldestKey)
+        nativeCards.delete(oldestKey)
+        try {
+          oldest.child.kill()
+        } catch {
+          // Already gone.
+        }
+      }
+    }
+    child.on('error', () => {
+      if (nativeCards.get(token) === entry) nativeCards.delete(token)
+    })
+    child.on('exit', code => {
+      if (nativeCards.get(token) === entry) nativeCards.delete(token)
+      let action = ''
+      try {
+        action = readFileSync(actionFile, 'utf8').trim()
+      } catch {
+        action = ''
+      }
+      try {
+        rmSync(actionFile, { force: true })
+      } catch {
+        // Best effort.
+      }
+      if (action === 'open' || code === 10) {
+        // The person pressed "open": focus the app window (done by the companion)
+        // and let the page open the chat.
+        publish({ kind: 'action', action: 'open', sessionId, token })
+      } else if (code === 2 && entry.record !== null) {
+        // The companion could not build the card; fall back to the in-app toast.
+        publish({ ...entry.record, nativeFallback: true })
+      }
+    })
+    return true
+  }
+
+  /** Close native cards, for one Session or (with no argument) every card. */
+  function killNativeCards(sessionId) {
+    for (const [token, entry] of nativeCards) {
+      if (sessionId !== undefined && sessionId !== '' && entry.sessionId !== sessionId) continue
+      nativeCards.delete(token)
+      try {
+        entry.child.kill()
+      } catch {
+        // Already gone.
+      }
+      try {
+        rmSync(entry.actionFile, { force: true })
+      } catch {
+        // Best effort.
+      }
+    }
+  }
+
+  ctx.effect(() => () => killNativeCards(), 'notify: native cards')
 
   /** Records newer than one consumer cursor. */
   function collect(cursor) {
@@ -568,6 +772,35 @@ export function apply(ctx) {
     requestBody: 'buffered',
     fetch: serve,
   }), 'notify: long-poll feed')
+
+  // The page owns presentation and decides when a card is needed; this route
+  // syncs its palette and asks the companion to draw or close a card.
+  ctx.effect(() => ctx.connection.fetch.register({
+    path: CONTROL_PATH,
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async request => {
+      let body
+      try {
+        body = await request.json()
+      } catch {
+        body = null
+      }
+      if (body === null || typeof body !== 'object') return jsonResponse({ ok: false })
+      if (body.type === 'presentation') {
+        nativePresentation = sanitizePresentation(body.value)
+        return jsonResponse({ ok: true, native: nativeSupported() })
+      }
+      if (body.type === 'dismiss') {
+        killNativeCards(typeof body.sessionId === 'string' ? body.sessionId : '')
+        return jsonResponse({ ok: true })
+      }
+      if (body.type === 'native') {
+        return jsonResponse({ ok: showNativeCard(body), native: nativeSupported() })
+      }
+      return jsonResponse({ ok: false })
+    },
+  }), 'notify: native control')
 
   // A page that was already open when an interaction started, or a notice the
   // live detection missed, still reaches the user: the sweep republishes every

@@ -21,6 +21,8 @@ window.__ModuleLoader__.load({
     const NS = 'dsh-notify'
     /** Host route registered by this package's Node half. */
     const FEED_PATH = '/api/dsh-notify.feed'
+    /** Host route for native-card presentation and control. */
+    const CONTROL_PATH = '/api/dsh-notify.control'
     const STORAGE_KEY = 'dsh-notify:settings:v1'
     const HISTORY_KEY = 'dsh-notify:history:v1'
     const HISTORY_LIMIT = 10
@@ -29,16 +31,69 @@ window.__ModuleLoader__.load({
     const VARIANTS = ['compact', 'card', 'banner']
     const POSITIONS = ['bottom-right', 'bottom-left', 'top-right', 'top-left']
     const DURATIONS = [4000, 6000, 10000, 0]
+    const THEMES = ['system', 'dark', 'light']
+    /** Base text size of a toast in px; every inner size is an em multiple of it. */
+    const TEXT_SIZES = [12, 13, 15, 17]
+    const FONT_FAMILIES = ['system', 'sans', 'serif', 'mono']
+    const FONT_STYLES = ['normal', 'bold', 'italic']
+    /** Families the dropdown offers; `system` keeps whatever the app already uses. */
+    /** The Windows companion needs one concrete family, not a CSS stack. */
+    const NATIVE_FONTS = { system: 'Segoe UI', sans: 'Segoe UI', serif: 'Georgia', mono: 'Consolas' }
+    const FONT_STACKS = {
+      system: 'inherit',
+      sans: '"Segoe UI Variable Text","Segoe UI",Inter,system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif',
+      serif: 'Georgia,"Times New Roman","PT Serif",serif',
+      mono: '"Cascadia Mono","JetBrains Mono",Consolas,"SF Mono",ui-monospace,monospace',
+    }
+
+    /** The platform the page runs on; macOS gets a slightly softer card geometry. */
+    const OS = (() => {
+      try {
+        const brand = navigator.userAgentData !== undefined ? navigator.userAgentData.platform : navigator.platform
+        const text = String(brand ?? '')
+        if (/mac/i.test(text)) return 'mac'
+        if (/win/i.test(text)) return 'windows'
+        return 'other'
+      } catch {
+        return 'other'
+      }
+    })()
+
+    /** Fixed palettes for an explicitly chosen theme; `system` reads the app tokens. */
+    const NATIVE_PALETTES = {
+      dark: {
+        background: '#F21C1D22',
+        foreground: '#F2F4F7',
+        muted: '#A4AAB3',
+        border: '#2E3037',
+        done: '#3BD69A',
+        attention: '#F0BE58',
+        error: '#F07B7B',
+      },
+      light: {
+        background: '#F2FFFFFF',
+        foreground: '#16181D',
+        muted: '#626873',
+        border: '#E4E6EB',
+        done: '#1FA974',
+        attention: '#C08A18',
+        error: '#D14B4B',
+      },
+    }
 
     const DEFAULTS = {
       notifications: true,
       sound: true,
+      theme: 'system',
       variant: 'card',
       position: 'bottom-right',
       duration: 6000,
       volume: 60,
-      onlyUnfocused: false,
+      gameMode: false,
       system: false,
+      textSize: 13,
+      fontFamily: 'system',
+      fontStyle: 'normal',
     }
 
     /** Every visible string, Russian and English; an unknown locale falls back to English. */
@@ -57,13 +112,37 @@ window.__ModuleLoader__.load({
         errorBody: 'Не удалось завершить задачу.',
         maxTokensBody: 'Ответ оборван по лимиту длины.',
         untitledSession: 'Без названия',
-        open: 'Открыть',
-        dismiss: 'Скрыть',
+        open: 'Перейти',
+        dismiss: 'Закрыть',
         unitSec: 'с',
         unitMin: 'мин',
         unitHour: 'ч',
         sectionTitle: 'Уведомления',
-        settingsLead: 'Плашки о завершённой задаче, запросе подтверждения и ошибке — со своим звуком для каждого случая.',
+        settingsLead: 'Плашка появляется, только если вы не в той сессии, где что-то произошло, или окно приложения не в фокусе. Звук звучит всегда — даже когда вы в этой сессии.',
+        groupLook: 'Оформление',
+        themeLabel: 'Тема плашек',
+        themeHint: '«Как в системе» следует светлой или тёмной теме приложения и вашей ОС; можно зафиксировать явно.',
+        themeSystem: 'Как в системе',
+        themeDark: 'Тёмная',
+        themeLight: 'Светлая',
+        lookPreview: 'Предпросмотр выбранного стиля',
+        textSize: 'Размер текста',
+        textSizeHint: 'Базовый размер шрифта плашки; остальные надписи масштабируются вместе с ним.',
+        textSizeSmall: 'Мелкий',
+        textSizeNormal: 'Обычный',
+        textSizeLarge: 'Крупный',
+        textSizeHuge: 'Очень крупный',
+        fontFamily: 'Шрифт',
+        fontFamilyHint: 'Гарнитура текста уведомления.',
+        fontSystem: 'Как в приложении',
+        fontSans: 'Без засечек',
+        fontSerif: 'С засечками',
+        fontMono: 'Моноширинный',
+        fontStyle: 'Стиль текста',
+        fontStyleHint: 'Начертание текста уведомления.',
+        styleNormal: 'Обычный',
+        styleBold: 'Полужирный',
+        styleItalic: 'Курсив',
         groupShow: 'Показ уведомлений',
         notifications: 'Показывать уведомления',
         notificationsHint: 'Плашки в углу окна. Звук настраивается отдельно.',
@@ -84,8 +163,8 @@ window.__ModuleLoader__.load({
         duration6: '6 с',
         duration10: '10 с',
         durationNever: 'Не скрывать',
-        onlyUnfocused: 'Только когда окно не в фокусе',
-        onlyUnfocusedHint: 'Пока вы в приложении, ничего не показывается и не звучит.',
+        gameMode: 'Игровой режим',
+        gameModeHint: 'Плашки и системные уведомления не показываются, чтобы не перекрывать игру. Звук остаётся.',
         groupSound: 'Звук',
         sound: 'Звуковые уведомления',
         soundHint: 'Мягкие сигналы: завершение, внимание, ошибка.',
@@ -93,7 +172,7 @@ window.__ModuleLoader__.load({
         volumeHint: 'Относительная громкость сигналов.',
         groupSystem: 'Системные уведомления',
         system: 'Показывать в системе',
-        systemHint: 'Уведомление Windows, когда окно приложения свёрнуто или не в фокусе.',
+        systemHint: 'Уведомление Windows, когда приложение свёрнуто или не в фокусе. В полноэкранной игре Windows может его скрыть.',
         systemUnsupported: 'Это окно не поддерживает системные уведомления.',
         systemGranted: 'Разрешение выдано.',
         systemDenied: 'Системные уведомления запрещены в настройках браузера.',
@@ -103,6 +182,10 @@ window.__ModuleLoader__.load({
         previewDone: 'Завершение',
         previewAttention: 'Внимание',
         previewError: 'Ошибка',
+        nativeTest: 'Поверх всех окон',
+        nativeTestHint: 'Нативная карточка поверх других приложений — её видно, даже когда Harness не в фокусе.',
+        nativeShow: 'Показать',
+        nativeUnavailable: 'Нативная карточка доступна в приложении Harness на Windows.',
         groupHistory: 'Недавние',
         historyEmpty: 'Пока пусто. Здесь появятся последние уведомления.',
         clear: 'Очистить',
@@ -129,7 +212,31 @@ window.__ModuleLoader__.load({
         unitMin: 'm',
         unitHour: 'h',
         sectionTitle: 'Notifications',
-        settingsLead: 'Toasts for a finished task, a confirmation request and a failure — each with its own sound.',
+        settingsLead: 'A toast appears only when you are not in the chat where it happened, or the app window is not focused. Sound always plays — even while you are in that chat.',
+        groupLook: 'Appearance',
+        themeLabel: 'Toast theme',
+        themeHint: '“System” follows the light or dark theme of the app and your OS; you can pin one explicitly.',
+        themeSystem: 'System',
+        themeDark: 'Dark',
+        themeLight: 'Light',
+        lookPreview: 'Preview of the selected style',
+        textSize: 'Text size',
+        textSizeHint: 'Base font size of a toast; every other label scales with it.',
+        textSizeSmall: 'Small',
+        textSizeNormal: 'Normal',
+        textSizeLarge: 'Large',
+        textSizeHuge: 'Extra large',
+        fontFamily: 'Font',
+        fontFamilyHint: 'Typeface of the notification text.',
+        fontSystem: 'As in the app',
+        fontSans: 'Sans serif',
+        fontSerif: 'Serif',
+        fontMono: 'Monospace',
+        fontStyle: 'Text style',
+        fontStyleHint: 'Weight and slant of the notification text.',
+        styleNormal: 'Regular',
+        styleBold: 'Semibold',
+        styleItalic: 'Italic',
         groupShow: 'Notifications',
         notifications: 'Show notifications',
         notificationsHint: 'Toasts in a window corner. Sound is configured separately.',
@@ -150,8 +257,8 @@ window.__ModuleLoader__.load({
         duration6: '6 s',
         duration10: '10 s',
         durationNever: 'Keep',
-        onlyUnfocused: 'Only while the window is unfocused',
-        onlyUnfocusedHint: 'While you are in the app, nothing is shown and nothing plays.',
+        gameMode: 'Game mode',
+        gameModeHint: 'No toasts and no system notifications, so nothing covers a game. Sound stays on.',
         groupSound: 'Sound',
         sound: 'Sound notifications',
         soundHint: 'Soft cues: finished, attention, error.',
@@ -159,7 +266,7 @@ window.__ModuleLoader__.load({
         volumeHint: 'Relative loudness of the cues.',
         groupSystem: 'System notifications',
         system: 'Show in the system',
-        systemHint: 'A Windows notification while the app window is in the background.',
+        systemHint: 'A Windows notification while the app window is in the background. Windows may hide it in a fullscreen game.',
         systemUnsupported: 'This window does not support system notifications.',
         systemGranted: 'Permission granted.',
         systemDenied: 'System notifications are blocked in the browser settings.',
@@ -169,6 +276,10 @@ window.__ModuleLoader__.load({
         previewDone: 'Finished',
         previewAttention: 'Attention',
         previewError: 'Error',
+        nativeTest: 'Above all windows',
+        nativeTestHint: 'A native card above other applications — visible even when Harness is not focused.',
+        nativeShow: 'Show',
+        nativeUnavailable: 'The native card is available in the Windows Harness app.',
         groupHistory: 'Recent',
         historyEmpty: 'Nothing yet. The latest notifications appear here.',
         clear: 'Clear',
@@ -182,7 +293,7 @@ window.__ModuleLoader__.load({
      * accent colors from the semantic state tokens, geometry is plain CSS.
      */
     const CSS = `
-.dsh-ntf-layer{position:fixed;inset:0;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;padding:22px;pointer-events:none;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;--dsh-ntf-shift:10px}
+.dsh-ntf-layer{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;padding:22px;pointer-events:none;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;--dsh-ntf-shift:10px}
 .dsh-ntf-pos-bottom-right{align-items:flex-end;justify-content:flex-end}
 .dsh-ntf-pos-bottom-left{align-items:flex-start;justify-content:flex-end}
 .dsh-ntf-pos-top-right{align-items:flex-end;justify-content:flex-start}
@@ -191,30 +302,44 @@ window.__ModuleLoader__.load({
 .dsh-ntf-kind-done{--dsh-ntf-accent:var(--dsw-alias-state-success-primary)}
 .dsh-ntf-kind-attention{--dsh-ntf-accent:var(--dsw-alias-state-warn-primary)}
 .dsh-ntf-kind-error{--dsh-ntf-accent:var(--dsw-alias-state-error-primary)}
-.dsh-ntf-card{position:relative;box-sizing:border-box;width:min(392px,calc(100vw - 32px));overflow:hidden;pointer-events:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-overlay);color:var(--dsw-alias-label-primary);box-shadow:inset 3px 0 0 var(--dsh-ntf-accent),0 14px 34px -18px color-mix(in srgb, var(--dsw-alias-label-primary) 38%, transparent);animation:dsh-ntf-enter .18s ease-out both}
+.dsh-ntf-card{--dsh-ntf-surface:var(--dsw-alias-bg-overlay);--dsh-ntf-text:var(--dsw-alias-label-primary);--dsh-ntf-muted:var(--dsw-alias-label-secondary);--dsh-ntf-edge:var(--dsw-alias-border-l2);--dsh-ntf-chip:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent);--dsh-ntf-chip-hover:color-mix(in srgb, var(--dsw-alias-label-primary) 15%, transparent);position:relative;box-sizing:border-box;width:min(392px,calc(100vw - 32px));overflow:hidden;pointer-events:auto;border:1px solid var(--dsh-ntf-edge);border-radius:13px;background:var(--dsh-ntf-surface);color:var(--dsh-ntf-text);font-family:var(--dsh-ntf-font-family,inherit);font-size:var(--dsh-ntf-font-size,13px);font-style:var(--dsh-ntf-font-style,normal);font-weight:var(--dsh-ntf-font-weight,400);box-shadow:inset 3px 0 0 var(--dsh-ntf-accent),0 20px 44px -22px color-mix(in srgb, var(--dsh-ntf-text) 45%, transparent);animation:dsh-ntf-enter .18s ease-out both}
+.dsh-ntf-card[data-theme="dark"]{--dsh-ntf-surface:#1C1D22;--dsh-ntf-text:#F2F4F7;--dsh-ntf-muted:#A4AAB3;--dsh-ntf-edge:#2E3037;--dsh-ntf-chip:#2A2C33;--dsh-ntf-chip-hover:#34363E}
+.dsh-ntf-card[data-theme="light"]{--dsh-ntf-surface:#FFFFFF;--dsh-ntf-text:#16181D;--dsh-ntf-muted:#626873;--dsh-ntf-edge:#E4E6EB;--dsh-ntf-chip:#F1F2F5;--dsh-ntf-chip-hover:#E8EAEF}
+.dsh-ntf-card[data-theme="dark"].dsh-ntf-kind-done{--dsh-ntf-accent:#3BD69A}
+.dsh-ntf-card[data-theme="dark"].dsh-ntf-kind-attention{--dsh-ntf-accent:#F0BE58}
+.dsh-ntf-card[data-theme="dark"].dsh-ntf-kind-error{--dsh-ntf-accent:#F07B7B}
+.dsh-ntf-card[data-theme="light"].dsh-ntf-kind-done{--dsh-ntf-accent:#1FA974}
+.dsh-ntf-card[data-theme="light"].dsh-ntf-kind-attention{--dsh-ntf-accent:#C08A18}
+.dsh-ntf-card[data-theme="light"].dsh-ntf-kind-error{--dsh-ntf-accent:#D14B4B}
+.dsh-ntf-card[data-theme="dark"][data-os="mac"]{border-radius:16px}
+.dsh-ntf-card[data-theme="light"][data-os="mac"]{border-radius:16px}
+.dsh-ntf-card[data-os="mac"]{border-radius:15px;box-shadow:inset 3px 0 0 var(--dsh-ntf-accent),0 24px 54px -26px color-mix(in srgb, var(--dsh-ntf-text) 40%, transparent)}
 .dsh-ntf-card[data-variant="banner"]{width:min(462px,calc(100vw - 32px))}
 .dsh-ntf-card.is-leaving{animation:dsh-ntf-leave .18s ease-in both}
-.dsh-ntf-icon{display:inline-flex;flex:none;align-items:center;justify-content:center;color:var(--dsh-ntf-accent)}
-.dsh-ntf-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;line-height:18px;color:var(--dsw-alias-label-primary)}
-.dsh-ntf-count{padding:0 5px;border-radius:999px;background:color-mix(in srgb, var(--dsh-ntf-accent) 22%, transparent);color:var(--dsw-alias-label-primary);font-size:11px;font-weight:600;line-height:16px}
-.dsh-ntf-meta{overflow:hidden;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:16px;white-space:nowrap;text-overflow:ellipsis}
-.dsh-ntf-body{margin:8px 0 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:19px;overflow-wrap:anywhere}
-.dsh-ntf-compact{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px}
+.dsh-ntf-icon{display:inline-flex;flex:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:color-mix(in srgb, var(--dsh-ntf-accent) 14%, transparent);color:var(--dsh-ntf-accent)}
+.dsh-ntf-compact .dsh-ntf-icon{width:28px;height:28px;border-radius:9px}
+.dsh-ntf-title{display:flex;align-items:center;gap:6px;font-size:1.04em;font-weight:var(--dsh-ntf-title-weight,600);line-height:1.45em;color:var(--dsh-ntf-text)}
+.dsh-ntf-count{padding:0 6px;border-radius:999px;background:color-mix(in srgb, var(--dsh-ntf-accent) 15%, transparent);color:var(--dsh-ntf-accent);font-size:0.85em;font-weight:600;line-height:1.45em}
+.dsh-ntf-meta{overflow:hidden;color:var(--dsh-ntf-muted);font-size:0.88em;line-height:1.4em;white-space:nowrap;text-overflow:ellipsis}
+.dsh-ntf-body{margin:8px 0 0;color:var(--dsh-ntf-text);font-size:1em;line-height:1.46em;overflow-wrap:anywhere}
+.dsh-ntf-compact{display:flex;align-items:center;gap:10px;padding:11px 11px 11px 14px}
 .dsh-ntf-compact-body{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0}
-.dsh-ntf-inline{overflow:hidden;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:16px;white-space:nowrap;text-overflow:ellipsis}
-.dsh-ntf-card--rich{padding:14px 14px 12px 16px}
-.dsh-ntf-head{display:flex;align-items:flex-start;gap:10px}
+.dsh-ntf-inline{overflow:hidden;color:var(--dsh-ntf-muted);font-size:0.92em;line-height:1.4em;white-space:nowrap;text-overflow:ellipsis}
+.dsh-ntf-card--rich{padding:14px 14px 13px 16px}
+.dsh-ntf-head{display:flex;align-items:flex-start;gap:11px}
 .dsh-ntf-heading{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0}
-.dsh-ntf-foot{display:flex;align-items:center;gap:10px;margin-top:10px}
-.dsh-ntf-time{margin-left:auto;color:var(--dsw-alias-label-secondary);font-size:11px;font-variant-numeric:tabular-nums}
-.dsh-ntf-banner{display:flex;align-items:center;gap:10px;padding:12px 12px 12px 16px}
+.dsh-ntf-foot{display:flex;align-items:center;gap:10px;margin-top:11px}
+.dsh-ntf-time{margin-left:auto;color:var(--dsh-ntf-muted);font-size:0.85em;font-variant-numeric:tabular-nums}
+.dsh-ntf-banner{display:flex;align-items:center;gap:11px;padding:12px 12px 12px 15px}
 .dsh-ntf-banner-text{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0}
-.dsh-ntf-banner-body{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:17px;overflow-wrap:anywhere}
-.dsh-ntf-close{display:inline-flex;flex:none;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:16px;line-height:1;cursor:pointer}
-.dsh-ntf-close:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
-.dsh-ntf-action{appearance:none;height:28px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px;cursor:pointer}
-.dsh-ntf-action:hover{background:var(--dsw-alias-bg-layer-2)}
-.dsh-ntf-progress{position:absolute;right:0;bottom:0;left:0;height:2px;opacity:.5;background:var(--dsh-ntf-accent);transform-origin:left;animation-name:dsh-ntf-progress;animation-timing-function:linear;animation-fill-mode:forwards}
+.dsh-ntf-banner-body{color:var(--dsh-ntf-muted);font-size:0.92em;line-height:1.42em;overflow-wrap:anywhere}
+.dsh-ntf-close{display:inline-flex;flex:none;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:var(--dsh-ntf-chip);color:var(--dsh-ntf-muted);font:inherit;font-size:1.38em;font-weight:500;line-height:1;cursor:pointer;transition:background .12s ease,color .12s ease}
+.dsh-ntf-close:hover{background:var(--dsh-ntf-chip-hover);color:var(--dsh-ntf-text)}
+.dsh-ntf-head .dsh-ntf-close,.dsh-ntf-compact .dsh-ntf-close{align-self:flex-start}
+.dsh-ntf-banner .dsh-ntf-close{align-self:center}
+.dsh-ntf-action{appearance:none;height:29px;padding:0 13px;border:1px solid color-mix(in srgb, var(--dsh-ntf-accent) 32%, transparent);border-radius:9px;background:color-mix(in srgb, var(--dsh-ntf-accent) 12%, transparent);color:var(--dsh-ntf-text);font:inherit;font-size:0.92em;font-weight:500;line-height:1.5em;cursor:pointer;transition:background .12s ease}
+.dsh-ntf-action:hover{background:color-mix(in srgb, var(--dsh-ntf-accent) 20%, transparent)}
+.dsh-ntf-progress{position:absolute;right:0;bottom:0;left:0;height:2px;opacity:.45;background:var(--dsh-ntf-accent);transform-origin:left;animation-name:dsh-ntf-progress;animation-timing-function:linear;animation-fill-mode:forwards}
 .dsh-ntf-close:focus-visible,.dsh-ntf-action:focus-visible,.dsh-ntf-card:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 @keyframes dsh-ntf-enter{from{opacity:0;transform:translateY(var(--dsh-ntf-shift)) scale(.985)}to{opacity:1;transform:none}}
 @keyframes dsh-ntf-leave{to{opacity:0;transform:translateY(-4px) scale(.99)}}
@@ -251,6 +376,18 @@ window.__ModuleLoader__.load({
 .dsh-ntf-preview:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsh-ntf-preview:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 .dsh-ntf-preview-dot{width:8px;height:8px;border-radius:50%;background:var(--dsh-ntf-accent)}
+.dsh-ntf-look{padding:0 16px 16px}
+.dsh-ntf-look-row{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:4px 0 12px}
+.dsh-ntf-select{box-sizing:border-box;height:32px;min-width:190px;padding:0 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;cursor:pointer}
+.dsh-ntf-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.dsh-ntf-stage{display:flex;align-items:center;justify-content:center;min-height:168px;padding:18px;border:1px dashed var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base)}
+.dsh-ntf-stage[data-pos="bottom-right"]{align-items:flex-end;justify-content:flex-end}
+.dsh-ntf-stage[data-pos="bottom-left"]{align-items:flex-start;justify-content:flex-end}
+.dsh-ntf-stage[data-pos="top-right"]{align-items:flex-end;justify-content:flex-start}
+.dsh-ntf-stage[data-pos="top-left"]{align-items:flex-start;justify-content:flex-start}
+.dsh-ntf-stage .dsh-ntf-card{max-width:100%;animation:none;pointer-events:none}
+.dsh-ntf-stage .dsh-ntf-progress{animation-iteration-count:infinite}
+.dsh-ntf-stage .dsh-ntf-card{animation:none;pointer-events:none}
 .dsh-ntf-note{margin:0;padding:0 16px 14px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:17px}
 .dsh-ntf-history{list-style:none;margin:0;padding:4px 8px 8px}
 .dsh-ntf-history-row{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px;text-align:left;cursor:pointer}
@@ -324,6 +461,54 @@ window.__ModuleLoader__.load({
       return allowed.includes(value) ? value : fallback
     }
 
+    /** The theme a card should draw with; `system` leaves the app tokens in charge. */
+    function resolvedTheme(settings) {
+      return pick(settings.theme, THEMES, 'system')
+    }
+
+    /** Normalize one computed CSS color to the #rrggbb / #aarrggbb the companion parses. */
+    function hexColor(raw, fallback) {
+      try {
+        const value = String(raw ?? '').trim()
+        if (value === '') return fallback
+        const canvas = document.createElement('canvas')
+        canvas.width = 1
+        canvas.height = 1
+        const context = canvas.getContext('2d')
+        if (context === null) return fallback
+        context.fillStyle = '#000000'
+        context.fillStyle = value
+        const normalized = context.fillStyle
+        if (typeof normalized !== 'string') return fallback
+        if (normalized.startsWith('#')) return normalized
+        const match = /^rgba?\(([^)]+)\)$/u.exec(normalized)
+        if (match === null) return fallback
+        const parts = match[1].split(',').map(part => Number.parseFloat(part))
+        const clamp = (input, max) => Math.max(0, Math.min(max, Math.round(input)))
+        const red = clamp(parts[0] ?? 0, 255)
+        const green = clamp(parts[1] ?? 0, 255)
+        const blue = clamp(parts[2] ?? 0, 255)
+        const alpha = parts.length > 3 ? Math.max(0, Math.min(1, parts[3] ?? 1)) : 1
+        const two = input => input.toString(16).padStart(2, '0')
+        if (alpha >= 1) return `#${two(red)}${two(green)}${two(blue)}`
+        return `#${two(Math.round(alpha * 255))}${two(red)}${two(green)}${two(blue)}`
+      } catch {
+        return fallback
+      }
+    }
+
+    /** Read a theme token off the document and return it as a companion-ready color. */
+    function tokenColor(name, fallback) {
+      try {
+        const fromRoot = getComputedStyle(document.documentElement).getPropertyValue(name)
+        if (fromRoot.trim() !== '') return hexColor(fromRoot, fallback)
+        const fromBody = getComputedStyle(document.body).getPropertyValue(name)
+        return hexColor(fromBody, fallback)
+      } catch {
+        return fallback
+      }
+    }
+
     function readSettings() {
       const next = { ...DEFAULTS }
       try {
@@ -333,9 +518,13 @@ window.__ModuleLoader__.load({
         if (parsed === null || typeof parsed !== 'object') return next
         if (typeof parsed.notifications === 'boolean') next.notifications = parsed.notifications
         if (typeof parsed.sound === 'boolean') next.sound = parsed.sound
-        if (typeof parsed.onlyUnfocused === 'boolean') next.onlyUnfocused = parsed.onlyUnfocused
+        if (typeof parsed.theme === 'string') next.theme = pick(parsed.theme, THEMES, DEFAULTS.theme)
+        if (typeof parsed.gameMode === 'boolean') next.gameMode = parsed.gameMode
         if (typeof parsed.system === 'boolean') next.system = parsed.system
         if (typeof parsed.variant === 'string') next.variant = pick(parsed.variant, VARIANTS, DEFAULTS.variant)
+        if (typeof parsed.textSize === 'number') next.textSize = pick(parsed.textSize, TEXT_SIZES, DEFAULTS.textSize)
+        if (typeof parsed.fontFamily === 'string') next.fontFamily = pick(parsed.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)
+        if (typeof parsed.fontStyle === 'string') next.fontStyle = pick(parsed.fontStyle, FONT_STYLES, DEFAULTS.fontStyle)
         if (typeof parsed.position === 'string') next.position = pick(parsed.position, POSITIONS, DEFAULTS.position)
         if (typeof parsed.duration === 'number') next.duration = pick(parsed.duration, DURATIONS, DEFAULTS.duration)
         if (typeof parsed.volume === 'number' && Number.isFinite(parsed.volume)) {
@@ -549,6 +738,17 @@ window.__ModuleLoader__.load({
     function ToastCard(props) {
       const item = props.item
       const info = describe(item)
+      const textSize = pick(props.textSize, TEXT_SIZES, DEFAULTS.textSize)
+      const fontChoice = pick(props.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)
+      const textStyle = pick(props.fontStyle, FONT_STYLES, DEFAULTS.fontStyle)
+      /** Typography the settings chose, handed to CSS through custom properties. */
+      const look = {
+        '--dsh-ntf-font-size': `${textSize}px`,
+        '--dsh-ntf-font-family': FONT_STACKS[fontChoice],
+        '--dsh-ntf-font-style': textStyle === 'italic' ? 'italic' : 'normal',
+        '--dsh-ntf-font-weight': textStyle === 'bold' ? '600' : '400',
+        '--dsh-ntf-title-weight': textStyle === 'bold' ? '700' : '600',
+      }
       const shape = props.variant === 'compact'
         ? ' dsh-ntf-compact'
         : props.variant === 'banner'
@@ -585,7 +785,7 @@ window.__ModuleLoader__.load({
           event.stopPropagation()
           props.onClose(item.uid)
         },
-      }, h('span', { 'aria-hidden': true }, '×'))
+      }, h('span', { 'aria-hidden': true }, '✕'))
       const progress = item.duration > 0 && !item.leaving
         ? h('span', { className: 'dsh-ntf-progress', style: { animationDuration: `${item.duration}ms` } })
         : null
@@ -594,9 +794,11 @@ window.__ModuleLoader__.load({
         return h('div', {
           className,
           'data-variant': props.variant,
+          'data-theme': props.theme ?? 'system',
+          'data-os': OS,
           role: item.kind === 'error' ? 'alert' : 'status',
           onClick: openable ? onOpen : undefined,
-          style: openable ? { cursor: 'pointer' } : undefined,
+          style: { ...look, ...(openable ? { cursor: 'pointer' } : {}) },
           ...keyboard,
         },
         h('span', { className: 'dsh-ntf-icon' }, h(Icon, { kind: item.kind, size: 16 })),
@@ -613,9 +815,11 @@ window.__ModuleLoader__.load({
         return h('div', {
           className,
           'data-variant': props.variant,
+          'data-theme': props.theme ?? 'system',
+          'data-os': OS,
           role: item.kind === 'error' ? 'alert' : 'status',
           onClick: openable ? onOpen : undefined,
-          style: openable ? { cursor: 'pointer' } : undefined,
+          style: { ...look, ...(openable ? { cursor: 'pointer' } : {}) },
           ...keyboard,
         },
         h('span', { className: 'dsh-ntf-icon' }, h(Icon, { kind: item.kind })),
@@ -634,8 +838,11 @@ window.__ModuleLoader__.load({
       return h('div', {
         className,
         'data-variant': props.variant,
+        'data-theme': props.theme ?? 'system',
+        'data-os': OS,
         role: item.kind === 'error' ? 'alert' : 'status',
         onClick: openable ? onOpen : undefined,
+        style: look,
         ...keyboard,
       },
       h('div', { className: 'dsh-ntf-head' },
@@ -661,6 +868,10 @@ window.__ModuleLoader__.load({
       const items = useStore(controller.toasts)
       const variant = pick(settings.variant, VARIANTS, DEFAULTS.variant)
       const position = pick(settings.position, POSITIONS, DEFAULTS.position)
+      const theme = resolvedTheme(settings)
+      const textSize = pick(settings.textSize, TEXT_SIZES, DEFAULTS.textSize)
+      const fontFamily = pick(settings.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)
+      const fontStyle = pick(settings.fontStyle, FONT_STYLES, DEFAULTS.fontStyle)
       return h('div', {
         className: `dsh-ntf-layer dsh-ntf-pos-${position}`,
         'aria-live': 'polite',
@@ -671,9 +882,29 @@ window.__ModuleLoader__.load({
         key: item.uid,
         item,
         variant,
+        theme,
+        textSize,
+        fontFamily,
+        fontStyle,
         onClose: controller.dismiss,
         onOpen: controller.openFromToast,
       })))
+    }
+
+    /**
+     * Invisible passenger in the conversation body: while this chat is on screen
+     * the Host receives its id, and switching away clears it. Rendering nothing
+     * keeps the dock visually unchanged.
+     */
+    function SessionTracker(props) {
+      const sessionId = props.sessionId
+      const controller = props.controller
+      React.useEffect(() => {
+        if (typeof sessionId !== 'string' || sessionId === '') return undefined
+        controller.setActiveSession(sessionId)
+        return () => controller.clearActiveSession(sessionId)
+      }, [sessionId, controller])
+      return null
     }
 
     function Switch(props) {
@@ -713,9 +944,13 @@ window.__ModuleLoader__.load({
       const settings = useStore(controller.settings)
       const history = useStore(controller.history)
       const permission = useStore(controller.permission)
+      const nativeAvailable = useStore(controller.nativeState)
       const variant = pick(settings.variant, VARIANTS, DEFAULTS.variant)
       const position = pick(settings.position, POSITIONS, DEFAULTS.position)
       const duration = pick(settings.duration, DURATIONS, DEFAULTS.duration)
+      const textSize = pick(settings.textSize, TEXT_SIZES, DEFAULTS.textSize)
+      const fontFamily = pick(settings.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)
+      const fontStyle = pick(settings.fontStyle, FONT_STYLES, DEFAULTS.fontStyle)
       const systemSupported = typeof Notification === 'function'
       const systemHint = !systemSupported
         ? t('systemUnsupported')
@@ -731,17 +966,23 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dsh-ntf-settings-inner' },
             h('p', { className: 'dsh-ntf-lead' }, t('settingsLead')),
             h('section', { className: 'dsh-ntf-group' },
-              h('h2', { className: 'dsh-ntf-group-title' }, t('groupShow')),
-              h('div', { className: 'dsh-ntf-group-body' },
-                h(Row, {
-                  title: t('notifications'),
-                  description: t('notificationsHint'),
-                }, h(Switch, {
-                  checked: settings.notifications,
-                  label: t('notifications'),
-                  onChange: value => controller.update({ notifications: value }),
-                })),
-                h(Row, { title: t('variant'), description: t('variantHint') },
+              h('h2', { className: 'dsh-ntf-group-title' }, t('groupLook')),
+              h('div', { className: 'dsh-ntf-look' },
+                h('div', { className: 'dsh-ntf-look-row' },
+                  h('label', { className: 'dsh-ntf-row-title', htmlFor: 'dsh-ntf-theme' }, t('themeLabel')),
+                  h('select', {
+                    id: 'dsh-ntf-theme',
+                    className: 'dsh-ntf-select',
+                    value: resolvedTheme(settings),
+                    'aria-label': t('themeLabel'),
+                    onChange: event => controller.update({ theme: pick(event.target.value, THEMES, 'system') }),
+                  },
+                  h('option', { value: 'system' }, t('themeSystem')),
+                  h('option', { value: 'dark' }, t('themeDark')),
+                  h('option', { value: 'light' }, t('themeLight')))),
+                h('p', { className: 'dsh-ntf-note', style: { padding: '0 0 10px' } }, t('themeHint')),
+                h('div', { className: 'dsh-ntf-look-row' },
+                  h('span', { className: 'dsh-ntf-row-title', title: t('variantHint') }, t('variant')),
                   h(Segmented, {
                     label: t('variant'),
                     value: variant,
@@ -752,6 +993,83 @@ window.__ModuleLoader__.load({
                       { value: 'banner', label: t('variantBanner') },
                     ],
                   })),
+                h('div', { className: 'dsh-ntf-look-row' },
+                  h('span', { className: 'dsh-ntf-row-title', title: t('textSizeHint') }, t('textSize')),
+                  h(Segmented, {
+                    label: t('textSize'),
+                    value: textSize,
+                    onChange: value => controller.update({ textSize: value }),
+                    options: [
+                      { value: 12, label: t('textSizeSmall') },
+                      { value: 13, label: t('textSizeNormal') },
+                      { value: 15, label: t('textSizeLarge') },
+                      { value: 17, label: t('textSizeHuge') },
+                    ],
+                  })),
+                h('div', { className: 'dsh-ntf-look-row' },
+                  h('label', { className: 'dsh-ntf-row-title', htmlFor: 'dsh-ntf-font', title: t('fontFamilyHint') }, t('fontFamily')),
+                  h('select', {
+                    id: 'dsh-ntf-font',
+                    className: 'dsh-ntf-select',
+                    value: fontFamily,
+                    'aria-label': t('fontFamily'),
+                    onChange: event => controller.update({ fontFamily: pick(event.target.value, FONT_FAMILIES, DEFAULTS.fontFamily) }),
+                  },
+                  h('option', { value: 'system' }, t('fontSystem')),
+                  h('option', { value: 'sans' }, t('fontSans')),
+                  h('option', { value: 'serif' }, t('fontSerif')),
+                  h('option', { value: 'mono' }, t('fontMono')))),
+                h('div', { className: 'dsh-ntf-look-row' },
+                  h('span', { className: 'dsh-ntf-row-title', title: t('fontStyleHint') }, t('fontStyle')),
+                  h(Segmented, {
+                    label: t('fontStyle'),
+                    value: fontStyle,
+                    onChange: value => controller.update({ fontStyle: value }),
+                    options: [
+                      { value: 'normal', label: t('styleNormal') },
+                      { value: 'bold', label: t('styleBold') },
+                      { value: 'italic', label: t('styleItalic') },
+                    ],
+                  })),
+                h('div', { className: 'dsh-ntf-stage', 'data-pos': position },
+                  h(ToastCard, {
+                    item: {
+                      uid: 'style-preview',
+                      kind: 'done',
+                      sessionId: 'preview',
+                      sessionTitle: t('previewSession'),
+                      reason: '',
+                      tool: '',
+                      question: '',
+                      message: '',
+                      durationMs: 120_000,
+                      at: Date.now(),
+                      duration,
+                      count: 1,
+                      leaving: false,
+                      sticky: false,
+                      unseen: false,
+                    },
+                    variant,
+                    theme: resolvedTheme(settings),
+                    textSize,
+                    fontFamily,
+                    fontStyle,
+                    onClose: () => {},
+                    onOpen: () => {},
+                  })))),
+            h('section', { className: 'dsh-ntf-group' },
+              h('h2', { className: 'dsh-ntf-group-title' }, t('groupShow')),
+              h('div', { className: 'dsh-ntf-group-body' },
+                h(Row, {
+                  title: t('notifications'),
+                  description: t('notificationsHint'),
+                }, h(Switch, {
+                  checked: settings.notifications,
+                  label: t('notifications'),
+                  onChange: value => controller.update({ notifications: value }),
+                })),
+
                 h(Row, { title: t('position'), description: t('positionHint') },
                   h(Segmented, {
                     label: t('position'),
@@ -776,11 +1094,11 @@ window.__ModuleLoader__.load({
                       { value: 0, label: t('durationNever') },
                     ],
                   })),
-                h(Row, { title: t('onlyUnfocused'), description: t('onlyUnfocusedHint') },
+                h(Row, { title: t('gameMode'), description: t('gameModeHint') },
                   h(Switch, {
-                    checked: settings.onlyUnfocused,
-                    label: t('onlyUnfocused'),
-                    onChange: value => controller.update({ onlyUnfocused: value }),
+                    checked: settings.gameMode === true,
+                    label: t('gameMode'),
+                    onChange: value => controller.update({ gameMode: value }),
                   })))),
             h('section', { className: 'dsh-ntf-group' },
               h('h2', { className: 'dsh-ntf-group-title' }, t('groupSound')),
@@ -841,7 +1159,15 @@ window.__ModuleLoader__.load({
                   type: 'button',
                   className: 'dsh-ntf-preview dsh-ntf-kind-error',
                   onClick: () => controller.preview('error'),
-                }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewError')))),
+                }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewError'))),
+              h(Row, { title: t('nativeTest'), description: t('nativeTestHint') },
+                h('button', {
+                  type: 'button',
+                  className: 'dsh-ntf-action',
+                  disabled: !nativeAvailable,
+                  onClick: () => controller.previewNative(),
+                }, t('nativeShow'))),
+              nativeAvailable ? null : h('p', { className: 'dsh-ntf-note' }, t('nativeUnavailable'))),
             h('section', { className: 'dsh-ntf-group' },
               h('div', { className: 'dsh-ntf-group-head' },
                 h('h2', { className: 'dsh-ntf-group-title' }, t('groupHistory')),
@@ -872,6 +1198,10 @@ window.__ModuleLoader__.load({
       const settings = createStore(readSettings())
       const toasts = createStore([])
       const history = createStore(readHistory())
+      /** The chat currently shown in the conversation body, or '' on any other view. */
+      const activeSession = createStore('')
+      /** Whether the native above-all-windows card is available in this Host. */
+      const nativeState = createStore(false)
       const localeTickStore = createStore(0)
       const permissionStore = createStore(
         typeof Notification === 'function' ? Notification.permission : 'unsupported',
@@ -883,6 +1213,8 @@ window.__ModuleLoader__.load({
       const feedControl = new AbortController()
       let uid = 0
       let disposed = false
+      /** Whether this Host can draw an always-on-top card on this platform. */
+      let nativeAvailable = false
 
       function persistSettings() {
         try {
@@ -895,6 +1227,7 @@ window.__ModuleLoader__.load({
       function update(patch) {
         settings.set({ ...settings.get(), ...patch })
         persistSettings()
+        void syncPresentation()
       }
 
       function persistHistory(entries) {
@@ -903,6 +1236,114 @@ window.__ModuleLoader__.load({
         } catch {
           // History is a convenience.
         }
+      }
+
+      /** The theme palette the Windows companion draws with. */
+      function readPalette() {
+        const mode = resolvedTheme(settings.get())
+        if (mode === 'dark' || mode === 'light') return { ...NATIVE_PALETTES[mode] }
+        return {
+          background: tokenColor('--dsw-alias-bg-overlay', '#F21E1F24'),
+          foreground: tokenColor('--dsw-alias-label-primary', '#F2F3F5'),
+          muted: tokenColor('--dsw-alias-label-secondary', '#9AA0A6'),
+          border: tokenColor('--dsw-alias-border-l2', '#33FFFFFF'),
+          done: tokenColor('--dsw-alias-state-success-primary', '#38C98A'),
+          attention: tokenColor('--dsw-alias-state-warn-primary', '#E8B341'),
+          error: tokenColor('--dsw-alias-state-error-primary', '#E05B5B'),
+        }
+      }
+
+      /** One authenticated call to the control route; null when it did not answer. */
+      async function postControl(body) {
+        try {
+          const response = await fetch(CONTROL_PATH, {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+            signal: feedControl.signal,
+          })
+          if (!response.ok) return null
+          return await response.json()
+        } catch {
+          return null
+        }
+      }
+
+      /** Tell the Host how a native card should look; also learns whether it exists. */
+      async function syncPresentation() {
+        const config = settings.get()
+        const result = await postControl({
+          type: 'presentation',
+          value: {
+            enabled: config.notifications === true,
+            gameMode: config.gameMode === true,
+            corner: pick(config.position, POSITIONS, DEFAULTS.position),
+            durationMs: config.duration,
+            width: 384,
+            labels: { open: t('open'), dismiss: t('dismiss') },
+            palette: readPalette(),
+            fonts: {
+              family: NATIVE_FONTS[pick(config.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)] ?? 'Segoe UI',
+              size: Number.isFinite(config.textSize) ? config.textSize : DEFAULTS.textSize,
+              weight: config.fontStyle === 'bold' ? 600 : 400,
+              italic: config.fontStyle === 'italic',
+            },
+          },
+        })
+        nativeAvailable = result !== null && result.native === true
+        nativeState.set(nativeAvailable)
+      }
+
+      /** Draw a card above every application; fall back to the held in-app toast. */
+      async function showNative(record, options = {}) {
+        const info = describe(record)
+        const result = await postControl({
+          type: 'native',
+          token: `n${record.uid}-${Date.now()}`,
+          sessionId: record.sessionId,
+          kind: record.kind,
+          title: info.title,
+          body: info.body,
+          meta: info.meta ?? '',
+          record: {
+            kind: record.kind,
+            sessionId: record.sessionId,
+            sessionTitle: record.sessionTitle,
+            reason: record.reason,
+            tool: record.tool,
+            question: record.question,
+            message: record.message,
+            durationMs: record.durationMs,
+            at: record.at,
+          },
+        })
+        if (result !== null && result.ok === true) return
+        pushToast(record, settings.get(), { unseen: options.unseenFallback !== false })
+      }
+
+      /** Show the native card on demand, even while the app is focused. */
+      function previewNative() {
+        uid += 1
+        const record = {
+          uid,
+          kind: 'attention',
+          sessionId: '',
+          sessionTitle: t('previewSession'),
+          reason: 'approval',
+          tool: 'bash',
+          question: '',
+          message: '',
+          durationMs: 0,
+          at: Date.now(),
+          sticky: false,
+        }
+        if (nativeState.get() !== true) {
+          pushToast(record, settings.get(), { unseen: false })
+          return
+        }
+        void showNative(record, { unseenFallback: false })
       }
 
       function setTimer(key, fn, ms) {
@@ -955,6 +1396,44 @@ window.__ModuleLoader__.load({
         dismiss(item.uid)
       }
 
+      /** Remember the chat the person is looking at and drop its toasts and cards. */
+      function setActiveSession(sessionId) {
+        if (typeof sessionId !== 'string' || sessionId === '') return
+        if (activeSession.get() === sessionId) return
+        activeSession.set(sessionId)
+        for (const item of toasts.get()) {
+          if (item.sessionId === sessionId && item.leaving !== true) dismiss(item.uid)
+        }
+        void postControl({ type: 'dismiss', sessionId })
+      }
+
+      /** The conversation left the screen (another chat, another panel, or a closed tab). */
+      function clearActiveSession(sessionId) {
+        if (activeSession.get() !== sessionId) return
+        activeSession.set('')
+      }
+
+      /** The app window is back: drop toasts for the chat being read, wake the rest. */
+      function markWindowActive() {
+        const active = activeSession.get()
+        if (active !== '') {
+          for (const item of toasts.get()) {
+            if (item.sessionId === active && item.leaving !== true) dismiss(item.uid)
+          }
+        }
+        const current = toasts.get()
+        const woken = []
+        const next = current.map(item => {
+          if (item.unseen !== true) return item
+          const updated = { ...item, unseen: false }
+          woken.push(updated)
+          return updated
+        })
+        if (woken.length === 0) return
+        toasts.set(next)
+        for (const item of woken) schedule(item, settings.get())
+      }
+
       function remember(record) {
         const entry = {
           uid: record.uid,
@@ -973,7 +1452,7 @@ window.__ModuleLoader__.load({
         persistHistory(next)
       }
 
-      function pushToast(record, config) {
+      function pushToast(record, config, options = {}) {
         const existing = toasts.get().find(item =>
           item.kind === record.kind
           && item.sessionId === record.sessionId
@@ -990,6 +1469,7 @@ window.__ModuleLoader__.load({
                 message: record.message !== '' ? record.message : item.message,
                 question: record.question !== '' ? record.question : item.question,
                 tool: record.tool !== '' ? record.tool : item.tool,
+                unseen: item.unseen === true || options.unseen === true,
                 createdAt: Date.now(),
               }
             : item)))
@@ -1002,6 +1482,7 @@ window.__ModuleLoader__.load({
           uid: record.uid,
           createdAt: Date.now(),
           duration: record.sticky === true ? 0 : config.duration,
+          unseen: options.unseen === true,
           leaving: false,
           count: 1,
         }
@@ -1018,6 +1499,9 @@ window.__ModuleLoader__.load({
       }
 
       function schedule(toast, config) {
+        // A toast created while the window was hidden waits for the person to
+        // come back instead of expiring unseen.
+        if (toast.unseen === true) return
         if (!(toast.duration > 0)) return
         setTimer(`auto:${toast.uid}`, () => dismiss(toast.uid), toast.duration)
       }
@@ -1049,6 +1533,21 @@ window.__ModuleLoader__.load({
 
       function ingest(item, options = {}) {
         if (disposed || item === null || typeof item !== 'object') return
+        // The companion reported that "open" was pressed on a native card.
+        if (item.kind === 'action') {
+          if (item.action === 'open' && typeof item.sessionId === 'string' && item.sessionId !== '') {
+            try {
+              window.focus()
+            } catch {
+              // The companion already raised the window.
+            }
+            openSession(item.sessionId)
+            for (const toast of toasts.get()) {
+              if (toast.sessionId === item.sessionId && toast.leaving !== true) dismiss(toast.uid)
+            }
+          }
+          return
+        }
         const key = typeof item.key === 'string' ? item.key : ''
         if (key !== '') {
           if (reminded.has(key)) return
@@ -1073,10 +1572,23 @@ window.__ModuleLoader__.load({
         remember(record)
         const config = settings.get()
         const focused = typeof document !== 'undefined' && document.hasFocus()
-        const quiet = config.onlyUnfocused === true && focused && !force
-        if (quiet) return
+        const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden'
+        const windowActive = focused && visible
+        // The person may be reading exactly this chat: a toast would cover the
+        // answer they are watching, so only the sound reports it.
+        const watchingThisChat = windowActive && record.sessionId !== '' && activeSession.get() === record.sessionId
         if (config.sound === true) audio.play(kind, config.volume / 100)
-        if (force || config.notifications === true) {
+        const showToast = force === true
+          || (config.notifications === true && config.gameMode !== true && !watchingThisChat)
+        // While the app window is not the one in front, a Windows companion card
+        // floats above every other application; the in-app toast would be hidden.
+        const useNative = showToast
+          && !windowActive
+          && force !== true
+          && item.nativeFallback !== true
+          && nativeAvailable === true
+          && config.gameMode !== true
+        if (showToast) {
           // A finished or failed turn means the waiting action is over: retire its
           // sticky reminder instead of leaving it on screen.
           if (kind !== 'attention' && record.sessionId !== '') {
@@ -1086,9 +1598,10 @@ window.__ModuleLoader__.load({
               }
             }
           }
-          pushToast(record, config)
+          if (useNative) void showNative(record)
+          else pushToast(record, config, { unseen: !windowActive && force !== true })
         }
-        if (config.system === true && !focused) systemNotify(record)
+        if (config.system === true && config.gameMode !== true && !windowActive && !useNative) systemNotify(record)
       }
 
       /** Interactions the Host reports as still waiting; `ingest` owns the once-per-key rule. */
@@ -1205,14 +1718,25 @@ window.__ModuleLoader__.load({
         history,
         localeTick: localeTickStore,
         permission: permissionStore,
+        nativeState,
         update,
         dismiss,
         openFromToast,
+        setActiveSession,
+        clearActiveSession,
+        markWindowActive,
+        syncPresentation,
         preview,
+        previewNative,
         clearHistory,
         requestPermission,
         ingest,
         start: () => {
+          void syncPresentation()
+          // A slow Host boot can miss the first sync; retry once, quietly.
+          setTimeout(() => {
+            if (!disposed) void syncPresentation()
+          }, 3000)
           void runFeed()
         },
         dispose,
@@ -1232,7 +1756,22 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.subscribe(() => {
           const store = controller.localeTick
           store.set(store.get() + 1)
+          void controller.syncPresentation()
         }), 'notify: locale redraw')
+
+        ctx.effect(() => {
+          const off = ctx.on('theme/change', () => {
+            void controller.syncPresentation()
+          })
+          return () => off()
+        }, 'notify: theme presentation')
+
+        ctx.effect(() => {
+          const off = ctx.on('connection/reset', () => {
+            void controller.syncPresentation()
+          })
+          return () => off()
+        }, 'notify: connection presentation')
 
         // Browsers only start an audio context from a gesture; the first click or
         // key press anywhere in the app is enough to make later cues audible.
@@ -1246,7 +1785,29 @@ window.__ModuleLoader__.load({
           }
         }, 'notify: audio unlock')
 
+        // Toasts created while the window was hidden wait for the person to return.
+        ctx.effect(() => {
+          const onFocus = () => controller.markWindowActive()
+          const onVisibility = () => {
+            if (document.visibilityState === 'visible') controller.markWindowActive()
+          }
+          window.addEventListener('focus', onFocus)
+          document.addEventListener('visibilitychange', onVisibility)
+          return () => {
+            window.removeEventListener('focus', onFocus)
+            document.removeEventListener('visibilitychange', onVisibility)
+          }
+        }, 'notify: window presence')
+
         controller.start()
+
+        ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
+          name: 'conversation.composer.dock',
+          id: 'notify.session-tracker',
+          order: 60,
+        }, function NotifySessionTracker(props) {
+          return h(SessionTracker, { ...props, controller })
+        }))
 
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({
           name: 'shell.overlay',
