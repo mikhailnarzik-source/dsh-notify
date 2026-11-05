@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Task notifications">
+  <defs>
+    <linearGradient id="notify-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d7fd9"/>
+      <stop offset="1" stop-color="#1f4fa0"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#notify-bg)"/>
+  <path d="M32 15.5c-5.3 0-9.6 4.3-9.6 9.6 0 7.3-2.1 9.7-3.6 11.3h26.4c-1.5-1.6-3.6-4-3.6-11.3 0-5.3-4.3-9.6-9.6-9.6Z" fill="#ffffff" opacity="0.96"/>
+  <path d="M28 40.6a4.2 4.2 0 0 0 8 0" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.96"/>
+  <circle cx="47" cy="47" r="7" fill="#38c98a" stroke="#1a3c78" stroke-width="1.6"/>
+  <path d="M44.2 47.1l2 2 3.6-3.8" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

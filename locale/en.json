@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Task notifications",
+    "description": "Toast notifications for a finished task, a confirmation request and a failure, each with its own sound; notifications and sound switch separately."
+  }
+}
