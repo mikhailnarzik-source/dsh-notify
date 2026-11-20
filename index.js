@@ -31,6 +31,20 @@ export const FEED_PATH = '/api/dsh-notify.feed'
 export const SETTINGS_PATH = '/api/dsh-notify.settings'
 
 /** Файл с настройками в профиле: живёт на диске, а не в браузере. */
+
+/** Записать событие в общий журнал плагина. */
+async function appendLog(kind, ok, text) {
+  try {
+    const home = process.env.DSH_HOME
+    const base = typeof home === 'string' && home !== '' ? home : join(homedir(), '.dsh')
+    const dir = join(base, 'dsh-notify')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'log.jsonl'), JSON.stringify({ at: new Date().toISOString(), plugin: 'dsh-notify', kind, ok, text }) + '\n', { encoding: 'utf8', flag: 'a' })
+  } catch {
+    // журнал необязателен
+  }
+}
+
 function settingsFile() {
   const home = process.env.DSH_HOME
   const base = typeof home === 'string' && home !== '' ? home : join(homedir(), '.dsh')
@@ -242,6 +256,7 @@ export function apply(ctx) {
       liveAttentions.push({ sessionId: record.sessionId, reason: record.reason, at: record.at })
       if (liveAttentions.length > 100) liveAttentions.shift()
     }
+    void appendLog(record.kind ?? 'notice', true, [record.sessionTitle, record.tool, record.reason].filter(Boolean).join(' · ').slice(0, 120) || 'событие')
     feed.push(record)
     if (feed.length > MAX_ITEMS) feed.splice(0, feed.length - MAX_ITEMS)
     const parked = [...waiters]
