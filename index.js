@@ -28,6 +28,15 @@ export const inject = ['connection']
 export const FEED_PATH = '/api/dsh-notify.feed'
 
 /** Authenticated Fetch route for presentation sync and native-card control. */
+export const SETTINGS_PATH = '/api/dsh-notify.settings'
+
+/** Файл с настройками в профиле: живёт на диске, а не в браузере. */
+function settingsFile() {
+  const home = process.env.DSH_HOME
+  const base = typeof home === 'string' && home !== '' ? home : join(homedir(), '.dsh')
+  return join(base, 'dsh-notify', 'settings.json')
+}
+
 export const CONTROL_PATH = '/api/dsh-notify.control'
 
 /** This installed package, the directory a self-update replaces files in. */
@@ -1025,6 +1034,37 @@ export function apply(ctx) {
     }
     return jsonResponse(batch)
   }
+
+  // Настройки живут в профиле, а не в localStorage: порт DSH меняется при
+  // каждом запуске, и вместе с ним терялись бы все переключатели.
+  ctx.effect(() => ctx.connection.fetch.register({
+    path: SETTINGS_PATH,
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async request => {
+      let body
+      try {
+        body = await request.json()
+      } catch {
+        body = null
+      }
+      const file = settingsFile()
+      if (body !== null && typeof body === 'object' && typeof body.settings === 'object' && body.settings !== null) {
+        try {
+          mkdirSync(dirname(file), { recursive: true })
+          writeFileSync(file, JSON.stringify(body.settings, null, 2) + '\n', 'utf8')
+        } catch (error) {
+          return jsonResponse({ ok: false, message: String(error?.message ?? error) })
+        }
+        return jsonResponse({ ok: true, settings: body.settings })
+      }
+      try {
+        return jsonResponse({ ok: true, settings: JSON.parse(readFileSync(file, 'utf8')) })
+      } catch {
+        return jsonResponse({ ok: true, settings: null })
+      }
+    },
+  }), 'notify: settings route')
 
   ctx.effect(() => ctx.connection.fetch.register({
     path: FEED_PATH,

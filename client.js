@@ -23,6 +23,7 @@ window.__ModuleLoader__.load({
     const FEED_PATH = '/api/dsh-notify.feed'
     /** Host route for native-card presentation and control. */
     const CONTROL_PATH = '/api/dsh-notify.control'
+        const SETTINGS_PATH = '/api/dsh-notify.settings'
     const STORAGE_KEY = 'dsh-notify:settings:v1'
     const HISTORY_KEY = 'dsh-notify:history:v1'
     const HISTORY_LIMIT = 10
@@ -1364,6 +1365,41 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Отправить настройки в профиль: переживут смену порта и перезапуск. */
+      async function pushSettingsToHost() {
+        try {
+          await fetch(SETTINGS_PATH, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ settings: settings.get() }),
+          })
+        } catch {
+          // Профиль недоступен — остаются локальные настройки.
+        }
+      }
+
+      /** Забрать настройки из профиля; если там пусто — отдать свои. */
+      async function pullSettingsFromHost() {
+        try {
+          const response = await fetch(SETTINGS_PATH, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: '{}',
+          })
+          const payload = await response.json()
+          if (payload?.ok !== true) return
+          if (payload.settings === null || typeof payload.settings !== 'object') {
+            await pushSettingsToHost()
+            return
+          }
+          settings.set({ ...settings.get(), ...payload.settings })
+        } catch {
+          // Нет связи с хостом — работаем на локальных значениях.
+        }
+      }
+
       function update(patch) {
         settings.set({ ...settings.get(), ...patch })
         persistSettings()
@@ -1998,6 +2034,7 @@ window.__ModuleLoader__.load({
         requestPermission,
         ingest,
         start: () => {
+          void pullSettingsFromHost()
           void syncPresentation()
           // The Host may have discovered a release before this page connected.
           void refreshUpdate()
