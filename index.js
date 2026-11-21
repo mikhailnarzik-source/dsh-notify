@@ -1024,6 +1024,8 @@ export function apply(ctx) {
   async function serve(request) {
     const url = new URL(request.url)
     const rawCursor = url.searchParams.get('cursor')
+    // Диагностика: видно, опрашивает ли клиент ленту.
+    void appendLog('feed', true, 'cursor=' + (rawCursor === null ? 'нет' : rawCursor))
     if (rawCursor === null) {
       const pending = await pendingSnapshot()
       return jsonResponse({
