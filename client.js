@@ -2106,8 +2106,28 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'ru', DICT.ru), 'notify: ru dictionary')
         ctx.effect(() => ctx.locale.register(NS, 'en', DICT.en), 'notify: en dictionary')
 
+        // При горячей перезагрузке старый экземпляр продолжает опрашивать ленту
+        // в свой store, а плашки рисует новый — поэтому гасим предыдущий.
+        try {
+          const previous = window.__dshNotifyController
+          if (previous !== undefined && typeof previous.dispose === 'function') previous.dispose()
+        } catch {
+          // предыдущего экземпляра нет
+        }
         const controller = createController(ctx)
-        ctx.effect(() => () => controller.dispose(), 'notify: controller')
+        try {
+          window.__dshNotifyController = controller
+        } catch {
+          // окно недоступно
+        }
+        ctx.effect(() => () => {
+          controller.dispose()
+          try {
+            if (window.__dshNotifyController === controller) delete window.__dshNotifyController
+          } catch {
+            // окно недоступно
+          }
+        }, 'notify: controller')
         ctx.effect(() => ctx.locale.subscribe(() => {
           const store = controller.localeTick
           store.set(store.get() + 1)
