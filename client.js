@@ -1979,6 +1979,10 @@ window.__ModuleLoader__.load({
           durationMs: Number.isFinite(item.durationMs) ? item.durationMs : 0,
           at: Number.isFinite(item.at) ? item.at : Date.now(),
           sticky: item.sticky === true || item.reminder === true,
+          subagent: item.subagent === true,
+          agentTitle: typeof item.agentTitle === 'string' ? item.agentTitle : '',
+          parentTitle: typeof item.parentTitle === 'string' ? item.parentTitle : '',
+          parentSessionId: typeof item.parentSessionId === 'string' ? item.parentSessionId : '',
         }
         remember(record)
         const config = settings.get()
