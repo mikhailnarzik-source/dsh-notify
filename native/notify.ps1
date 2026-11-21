@@ -660,16 +660,38 @@ if ($SelfTest) {
   })
 }
 
-$script:window.Add_Loaded({
+# Позиция карточки: считаем после реальной раскладки, иначе ActualHeight = 0
+# и окно уезжает за нижний край экрана — его просто не видно.
+function Set-CardPosition {
   try {
     $area = [System.Windows.SystemParameters]::WorkArea
-    $height = $script:window.ActualHeight
+    $cardWidth = $script:window.ActualWidth
+    if ($null -eq $cardWidth -or $cardWidth -le 0) { $cardWidth = $script:window.Width }
+    if ($null -eq $cardWidth -or $cardWidth -le 0) { $cardWidth = $width }
+    $cardHeight = $script:window.ActualHeight
+    if ($null -eq $cardHeight -or $cardHeight -le 0) { $cardHeight = 130 }
     $gap = 20
-    $stack = $offset * ($height + 10)
-    $left = if ($corner -like '*-right') { $area.Right - $script:window.ActualWidth - $gap } else { $area.Left + $gap }
-    $top = if ($corner -like 'top-*') { $area.Top + $gap + $stack } else { $area.Bottom - $height - $gap - $stack }
+    $stack = $offset * ($cardHeight + 10)
+    $left = if ($corner -like '*-right') { $area.Right - $cardWidth - $gap } else { $area.Left + $gap }
+    $top = if ($corner -like 'top-*') { $area.Top + $gap + $stack } else { $area.Bottom - $cardHeight - $gap - $stack }
+    if ($left -lt $area.Left) { $left = $area.Left + $gap }
+    if ($left + $cardWidth -gt $area.Right) { $left = $area.Right - $cardWidth - $gap }
+    if ($top -lt $area.Top) { $top = $area.Top + $gap }
+    if ($top + $cardHeight -gt $area.Bottom) { $top = $area.Bottom - $cardHeight - $gap }
     $script:window.Left = $left
     $script:window.Top = $top
+  } catch {
+  }
+}
+
+$script:window.Add_Loaded({
+  Set-CardPosition
+  # Ещё раз после отрисовки: высота карточки становится известна только тогда.
+  try {
+    $script:window.Dispatcher.BeginInvoke(
+      [System.Windows.Threading.DispatcherPriority]::ContextIdle,
+      [Action]{ Set-CardPosition }
+    ) | Out-Null
   } catch {
   }
 })
