@@ -2034,7 +2034,14 @@ window.__ModuleLoader__.load({
         requestPermission,
         ingest,
         start: () => {
-          void pullSettingsFromHost()
+          // Сообщаем host, что клиент загрузился: метка попадёт в журнал.
+    void fetch(CONTROL_PATH, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-start' }),
+    }).catch(() => {})
+    void pullSettingsFromHost()
           void syncPresentation()
           // The Host may have discovered a release before this page connected.
           void refreshUpdate()
