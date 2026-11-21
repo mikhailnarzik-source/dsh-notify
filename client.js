@@ -2070,7 +2070,14 @@ window.__ModuleLoader__.load({
         requestPermission,
         ingest,
         start: () => {
-          void pullSettingsFromHost()
+          // Сообщаем host, что клиент загрузился: запись попадёт в журнал.
+    void fetch('/api/dsh-notify/control', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-start' }),
+    }).catch(() => {})
+    void pullSettingsFromHost()
           void syncPresentation()
           // The Host may have discovered a release before this page connected.
           void refreshUpdate()

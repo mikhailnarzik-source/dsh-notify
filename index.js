@@ -1114,6 +1114,11 @@ export function apply(ctx) {
         return jsonResponse({ ok: showNativeCard(body), native: nativeSupported() })
       }
       // Self-update: the page reads the status, asks for a check, or installs.
+      if (body.type === 'client-start') {
+        // Клиентская часть уведомлений загрузилась — фиксируем в журнале.
+        void appendLog('client-start', true, 'клиент уведомлений запущен')
+        return jsonResponse({ ok: true })
+      }
       if (body.type === 'update/state') {
         return jsonResponse({ ok: true, state: updateSnapshot() })
       }
