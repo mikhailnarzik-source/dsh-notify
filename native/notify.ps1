@@ -936,6 +936,7 @@ $script:window.Add_Loaded({
       $seconds = [int]([DateTime]::Now - $script:startedAt).TotalSeconds
       if ($seconds -lt 0) { $seconds = 0 }
       $elapsedText.Text = ("{0}:{1:00}" -f [int]($seconds / 60), ($seconds % 60))
+      Update-MuteState
       if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
         $raw = ""
         try { $raw = [System.IO.File]::ReadAllText($actionFile) } catch { }
