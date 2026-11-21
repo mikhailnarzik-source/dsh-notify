@@ -689,7 +689,7 @@ export function apply(ctx) {
   function showNativeCard(request) {
     if (!nativeSupported() || nativePresentation.enabled !== true || nativePresentation.gameMode === true) return false
     const title = clip(String(request.title ?? ''), 120)
-    const sessionIdForCard = typeof request.sessionId === 'string' ? request.sessionId : ''
+    const sessionIdForCard = typeof request.sessionId === 'string' && request.sessionId !== '' ? request.sessionId : 'title:' + title
     if (title === '') return false
     const kind = request.kind === 'attention' || request.kind === 'error' ? request.kind : 'done'
     const palette = nativePresentation.palette
@@ -767,6 +767,7 @@ export function apply(ctx) {
     const entry = {
       child,
       sessionId,
+      matchKey: sessionId !== '' ? sessionId : 'title:' + title,
       actionFile,
       record: request.record !== null && typeof request.record === 'object' ? request.record : null,
     }
@@ -845,7 +846,7 @@ export function apply(ctx) {
   /** Close native cards, for one Session or (with no argument) every card. */
   function killNativeCards(sessionId) {
     for (const [token, entry] of nativeCards) {
-      if (sessionId !== undefined && sessionId !== '' && entry.sessionId !== sessionId) continue
+      if (sessionId !== undefined && sessionId !== '' && entry.sessionId !== sessionId && entry.matchKey !== sessionId) continue
       nativeCards.delete(token)
       try {
         entry.child.kill()
