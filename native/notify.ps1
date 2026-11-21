@@ -797,6 +797,24 @@ function Animate-Card([double]$targetLeft, [double]$targetTop, [int]$durationMs,
     $topAnim.Duration = $span
     $topAnim.EasingFunction = $ease
     $script:window.BeginAnimation([System.Windows.Window]::TopProperty, $topAnim)
+    $script:animEndLeft = $targetLeft
+    $script:animEndTop = $targetTop
+    $script:animEndTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:animEndTimer.Interval = [TimeSpan]::FromMilliseconds($durationMs + 40)
+    $script:animEndTimer.Add_Tick({
+      $script:animEndTimer.Stop()
+      try {
+        $script:window.BeginAnimation([System.Windows.Window]::LeftProperty, $null)
+        $script:window.BeginAnimation([System.Windows.Window]::TopProperty, $null)
+        $script:window.Left = $script:animEndLeft
+        $script:window.Top = $script:animEndTop
+        if (-not $NoFade) {
+          $script:window.BeginAnimation([System.Windows.Window]::OpacityProperty, $null)
+          $script:window.Opacity = 1
+        }
+      } catch { }
+    })
+    $script:animEndTimer.Start()
     if (-not $NoFade) {
       $scaleX = New-Object System.Windows.Media.Animation.DoubleAnimation
       $scaleX.From = 0.97
@@ -843,6 +861,10 @@ function Close-Card([int]$result = 0) {
 
 function Set-CardPosition {
   $target = Get-CardTarget
+  try {
+    $script:window.BeginAnimation([System.Windows.Window]::LeftProperty, $null)
+    $script:window.BeginAnimation([System.Windows.Window]::TopProperty, $null)
+  } catch { }
   $script:window.Left = $target.left
   $script:window.Top = $target.top
 }
@@ -870,7 +892,8 @@ $script:window.Add_Loaded({
         try { $raw = [System.IO.File]::ReadAllText($actionFile) } catch { }
         if ($raw.StartsWith("slot:")) {
           try { $json.slot = [int]$raw.Substring(5) } catch { }
-          Set-CardPosition
+          $late = Get-CardTarget
+          Animate-Card $late.left $late.top 220 -NoFade
           try { [System.IO.File]::WriteAllText($actionFile, "", [System.Text.Encoding]::UTF8) } catch { }
         }
       }
