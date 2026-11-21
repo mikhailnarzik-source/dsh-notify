@@ -221,6 +221,8 @@ public static class DshNotifyNative {
 
 $actionFile = ''
 if (-not [string]::IsNullOrWhiteSpace([string]$json.actionFile)) { $actionFile = [string]$json.actionFile }
+$layoutFile = ''
+if (-not [string]::IsNullOrWhiteSpace([string]$json.layoutFile)) { $layoutFile = [string]$json.layoutFile }
 
 $width = 384
 if ($null -ne $json.width -and [double]$json.width -ge 260 -and [double]$json.width -le 560) {
@@ -982,14 +984,14 @@ $script:window.Add_Loaded({
   $script:slotTimer.Interval = [TimeSpan]::FromMilliseconds(120)
   $script:slotTimer.Add_Tick({
     try {
-      if ([string]::IsNullOrWhiteSpace($actionFile)) { return }
+      if ([string]::IsNullOrWhiteSpace($layoutFile)) { return }
       $rawSlot = ""
-      try { $rawSlot = [System.IO.File]::ReadAllText($actionFile) } catch { }
+      try { $rawSlot = [System.IO.File]::ReadAllText($layoutFile) } catch { }
       if ($rawSlot.StartsWith("slot:")) {
         try { $json.slot = [int]$rawSlot.Substring(5) } catch { }
         $late = Get-CardTarget
         Animate-Card $late.left $late.top 240 -NoFade
-        try { [System.IO.File]::WriteAllText($actionFile, "", [System.Text.Encoding]::UTF8) } catch { }
+        try { [System.IO.File]::WriteAllText($layoutFile, "", [System.Text.Encoding]::UTF8) } catch { }
       }
     } catch { }
   })

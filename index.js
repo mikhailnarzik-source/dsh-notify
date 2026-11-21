@@ -790,13 +790,16 @@ let nativeSpawnTimer = null
     nativeOffset += 1
     const safeToken = token.replace(/[^a-zA-Z0-9._-]/gu, '')
     const actionFile = join(tmpdir(), 'dsh-notify', `${safeToken}.action`)
+    const layoutFile = join(tmpdir(), 'dsh-notify', `${safeToken}.layout`)
     try {
       mkdirSync(join(tmpdir(), 'dsh-notify'), { recursive: true })
       rmSync(actionFile, { force: true })
+      rmSync(layoutFile, { force: true })
     } catch {
       // The exit code still carries the click.
     }
     payload.actionFile = actionFile
+    payload.layoutFile = layoutFile
     const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
     let child
     try {
@@ -821,6 +824,7 @@ let nativeSpawnTimer = null
       sessionId,
       matchKey: sessionId !== '' ? sessionId : 'title:' + title,
       actionFile,
+      layoutFile,
       record: request.record !== null && typeof request.record === 'object' ? request.record : null,
     }
     nativeCards.set(token, entry)
@@ -830,12 +834,12 @@ let nativeSpawnTimer = null
     // Не больше, чем влезает на экран: старейшие закрываем.
     while (nativeOrder.length > nativePresentation.maxCards) {
       const oldest = nativeOrder.shift()
-      void appendLog('native-max', true, 'kill=' + String(oldest) + ' order=' + nativeOrder.length)
       const oldEntry = oldest === undefined ? undefined : nativeCards.get(oldest)
       if (oldest !== undefined && oldEntry !== undefined) {
         nativeCards.delete(oldest)
         try { oldEntry.child.kill() } catch { /* уже закрыта */ }
         try { rmSync(oldEntry.actionFile, { force: true }) } catch { /* best effort */ }
+        try { rmSync(oldEntry.layoutFile, { force: true }) } catch { /* best effort */ }
       }
     }
     nativeSlots()
@@ -891,7 +895,7 @@ let nativeSpawnTimer = null
       if (entry === undefined) continue
       const slot = total - 1 - index
       try {
-        writeFileSync(entry.actionFile, 'slot:' + slot, 'utf8')
+        writeFileSync(entry.layoutFile, 'slot:' + slot, 'utf8')
       } catch {
         // карточка уже закрылась
       }
@@ -900,7 +904,6 @@ let nativeSpawnTimer = null
 
   /** Close native cards, for one Session or (with no argument) every card. */
   function killNativeCards(sessionId) {
-    void appendLog('native-kill', true, 'session=' + String(sessionId) + ' live=' + nativeCards.size + ' order=' + nativeOrder.length)
     for (const [token, entry] of nativeCards) {
       if (sessionId !== undefined && sessionId !== '' && entry.sessionId !== sessionId && entry.matchKey !== sessionId) continue
       nativeCards.delete(token)
@@ -911,6 +914,7 @@ let nativeSpawnTimer = null
       }
       try {
         rmSync(entry.actionFile, { force: true })
+        rmSync(entry.layoutFile, { force: true })
       } catch {
         // Best effort.
       }
