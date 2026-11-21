@@ -710,6 +710,7 @@ export function apply(ctx) {
       stamp,
       startedAt: Date.now(),
       subtitle: clip(String(request.subtitle ?? request.meta ?? ""), 160),
+      theme: request.theme === "light" ? "light" : "dark",
       muteLabel: clip(String(request.muteLabel ?? ""), 60),
       body: clip(String(request.body ?? ''), 200),
       meta: clip(String(request.meta ?? ''), 120),

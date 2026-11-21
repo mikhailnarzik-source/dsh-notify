@@ -1553,6 +1553,7 @@ window.__ModuleLoader__.load({
           meta: info.meta ?? '',
           subtitle: info.meta ?? '',
           muteLabel: t('muteAction'),
+          theme: resolvedTheme(settings.get()),
           windowTitle: pageTitle,
           record: {
             kind: record.kind,

@@ -518,17 +518,18 @@ $root.BorderThickness = New-Object System.Windows.Thickness 1
 $shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
 $shadow.BlurRadius = 22
 $shadow.ShadowDepth = 0
-$shadow.Opacity = 0.38
+$themeName = [string]$json.theme
+if ($themeName -eq "light") { $shadow.Opacity = 0.20; $shadow.BlurRadius = 18 } else { $shadow.Opacity = 0.42; $shadow.BlurRadius = 24 }
 $shadow.Color = [System.Windows.Media.Color]::FromArgb(255, 0, 0, 0)
 $root.Effect = $shadow
 $script:window.Content = $root
 
 $body = New-Object System.Windows.Controls.StackPanel
-$body.Margin = New-Object System.Windows.Thickness 12, 9, 12, 9
-$body.Width = $width - 24
+$body.Margin = New-Object System.Windows.Thickness 14, 11, 14, 11
+$body.Width = $width - 28
 $root.Child = $body
 
-# Компактный заголовок: иконка, название, крестик.
+# Шапка: иконка, заголовок с подзаголовком, крестик.
 $header = New-Object System.Windows.Controls.Grid
 $iconColumn = New-Object System.Windows.Controls.ColumnDefinition
 $iconColumn.Width = New-Object System.Windows.GridLength 0, ([System.Windows.GridUnitType]::Auto)
@@ -542,16 +543,16 @@ $header.ColumnDefinitions.Add($closeColumn)
 $null = $body.Children.Add($header)
 
 $iconCircle = New-Object System.Windows.Controls.Border
-$iconCircle.Width = 24
-$iconCircle.Height = 24
-$iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 12
+$iconCircle.Width = 26
+$iconCircle.Height = 26
+$iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 13
 $iconBg = Blend $accentText $backgroundText 0.30
 $iconBorder = Blend $accentText $backgroundText 0.55
 $iconCircle.Background = Get-Brush $iconBg $iconBg
 $iconCircle.BorderBrush = Get-Brush $iconBorder $iconBorder
 $iconCircle.BorderThickness = New-Object System.Windows.Thickness 1
 $iconCircle.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-$iconCircle.Margin = New-Object System.Windows.Thickness 0, 0, 9, 0
+$iconCircle.Margin = New-Object System.Windows.Thickness 0, 0, 10, 0
 [System.Windows.Controls.Grid]::SetColumn($iconCircle, 0)
 $null = $header.Children.Add($iconCircle)
 
@@ -572,7 +573,7 @@ $glyphText = [string][char]0x2713
 if ($notifyKind -eq "attention") { $glyphText = "!" }
 if ($notifyKind -eq "error") { $glyphText = [string][char]0x2715 }
 $iconGlyph.Text = $glyphText
-$iconGlyph.FontSize = 12
+$iconGlyph.FontSize = 12.5
 $iconGlyph.FontWeight = [System.Windows.FontWeights]::Bold
 $iconGlyph.Foreground = $accentBrush
 $iconGlyph.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -581,7 +582,7 @@ $iconCircle.Child = $iconGlyph
 
 $heading = New-Object System.Windows.Controls.StackPanel
 [System.Windows.Controls.Grid]::SetColumn($heading, 1)
-$heading.Margin = New-Object System.Windows.Thickness 0, 0, 8, 0
+$heading.Margin = New-Object System.Windows.Thickness 0, 0, 10, 0
 $null = $header.Children.Add($heading)
 
 $title = New-Object System.Windows.Controls.TextBlock
@@ -629,13 +630,42 @@ $close.Add_MouseEnter({ $closeHoverBg = Blend $foregroundText $backgroundText 0.
 $close.Add_MouseLeave({ $close.Background = Get-Brush $closeBg $closeBg; $closeGlyph.Foreground = $mutedBrush })
 $close.Add_MouseLeftButtonUp({ $script:result = 0; $script:window.Close() })
 
-# Нижняя строка: действия, время с датой и таймер.
+# Текст уведомления одной строкой.
+$bodyText = New-Object System.Windows.Controls.TextBlock
+$bodyText.Text = [string]$json.body
+$bodyText.Margin = New-Object System.Windows.Thickness 0, 7, 0, 0
+$bodyText.FontSize = 12.5
+$bodyText.Foreground = $fgBrush
+$bodyText.TextWrapping = [System.Windows.TextWrapping]::NoWrap
+$bodyText.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
+$bodyText.Width = $width - 28
+$bodyText.FontStyle = $styleValue
+$null = $body.Children.Add($bodyText)
+
+# Разделитель между текстом и действиями.
+$divider = New-Object System.Windows.Controls.Border
+$divider.Height = 1
+$dividerBg = Blend $foregroundText $backgroundText 0.10
+$divider.Background = Get-Brush $dividerBg $dividerBg
+$divider.Margin = New-Object System.Windows.Thickness 0, 9, 0, 0
+$null = $body.Children.Add($divider)
+
+# Нижняя строка: действия слева, время и таймер справа в две строки.
 $footer = New-Object System.Windows.Controls.Grid
-$footer.Margin = New-Object System.Windows.Thickness 0, 7, 0, 0
-$footerLeft = New-Object System.Windows.Controls.StackPanel
-$footerLeft.Orientation = [System.Windows.Controls.Orientation]::Horizontal
-$footer.Children.Add($footerLeft)
+$footer.Margin = New-Object System.Windows.Thickness 0, 8, 0, 0
+$actionsColumn = New-Object System.Windows.Controls.ColumnDefinition
+$actionsColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
+$metaColumn = New-Object System.Windows.Controls.ColumnDefinition
+$metaColumn.Width = New-Object System.Windows.GridLength 0, ([System.Windows.GridUnitType]::Auto)
+$footer.ColumnDefinitions.Add($actionsColumn)
+$footer.ColumnDefinitions.Add($metaColumn)
 $null = $body.Children.Add($footer)
+
+$actions = New-Object System.Windows.Controls.StackPanel
+$actions.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+$actions.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+[System.Windows.Controls.Grid]::SetColumn($actions, 0)
+$null = $footer.Children.Add($actions)
 
 $open = New-Object System.Windows.Controls.Border
 $open.CornerRadius = New-Object System.Windows.CornerRadius 8
@@ -646,7 +676,7 @@ $open.BorderBrush = Get-Brush $openBorder $openBorder
 $open.BorderThickness = New-Object System.Windows.Thickness 1
 $open.Padding = New-Object System.Windows.Thickness 12, 4, 12, 4
 $open.Cursor = [System.Windows.Input.Cursors]::Hand
-$null = $footerLeft.Children.Add($open)
+$null = $actions.Children.Add($open)
 
 $openLabelText = New-Object System.Windows.Controls.TextBlock
 $openLabelText.Text = $openLabel
@@ -668,7 +698,7 @@ $mute.Padding = New-Object System.Windows.Thickness 8, 4, 8, 4
 $mute.Margin = New-Object System.Windows.Thickness 6, 0, 0, 0
 $mute.Cursor = [System.Windows.Input.Cursors]::Hand
 $mute.ToolTip = [string]$json.muteLabel
-$null = $footerLeft.Children.Add($mute)
+$null = $actions.Children.Add($mute)
 
 $muteGlyph = New-Object System.Windows.Controls.TextBlock
 $muteGlyph.Text = [string][char]::ConvertFromUtf32(0x1F515)
@@ -685,21 +715,24 @@ $mute.Add_MouseLeftButtonUp({
   $script:window.Close()
 })
 
+$meta = New-Object System.Windows.Controls.StackPanel
+$meta.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+[System.Windows.Controls.Grid]::SetColumn($meta, 1)
+$null = $footer.Children.Add($meta)
+
 $stampText = New-Object System.Windows.Controls.TextBlock
 $stampText.Text = [string]$json.stamp
 $stampText.FontSize = 10.5
 $stampText.Foreground = $mutedBrush
-$stampText.Margin = New-Object System.Windows.Thickness 10, 0, 0, 0
-$stampText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-$null = $footerLeft.Children.Add($stampText)
+$stampText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+$null = $meta.Children.Add($stampText)
 
 $elapsedText = New-Object System.Windows.Controls.TextBlock
-$elapsedText.Text = "0:00"
+$elapsedText.Text = "висит 0:00"
 $elapsedText.FontSize = 10.5
 $elapsedText.Foreground = $mutedBrush
-$elapsedText.Margin = New-Object System.Windows.Thickness 8, 0, 0, 0
-$elapsedText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-$null = $footerLeft.Children.Add($elapsedText)
+$elapsedText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+$null = $meta.Children.Add($elapsedText)
 
 function Request-Open {
   if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
@@ -729,40 +762,73 @@ if ($SelfTest) {
 
 # Позиция карточки: считаем после реальной раскладки, иначе ActualHeight = 0
 # и окно уезжает за нижний край экрана — его просто не видно.
-function Set-CardPosition {
+function Get-CardTarget {
   try {
     $area = [System.Windows.SystemParameters]::WorkArea
     $cardWidth = $script:window.ActualWidth
     if ($null -eq $cardWidth -or $cardWidth -le 0) { $cardWidth = $script:window.Width }
     $cardHeight = $script:window.ActualHeight
-    if ($null -eq $cardHeight -or $cardHeight -le 0) { $cardHeight = 96 }
+    if ($null -eq $cardHeight -or $cardHeight -le 0) { $cardHeight = 128 }
     $gap = 10
     $slot = 0
     if ($null -ne $json.slot) { $slot = [Math]::Max(0, [int]$json.slot) } elseif ($null -ne $json.offset) { $slot = [Math]::Max(0, [int]$json.offset) }
     $left = if ($corner -like '*-right') { $area.Right - $cardWidth - 16 } else { $area.Left + 16 }
     $top = if ($corner -like 'top-*') { $area.Top + 16 + $slot * ($cardHeight + $gap) } else { $area.Bottom - $cardHeight - 16 - $slot * ($cardHeight + $gap) }
-    if ($left -lt $area.Left) { $left = $area.Left + 16 }
-    if ($top -lt $area.Top) { $top = $area.Top + 16 }
-    $script:window.Left = $left
-    $script:window.Top = $top
+    return @{ left = $left; top = $top }
+  } catch {
+    return @{ left = 100; top = 100 }
+  }
+}
+
+function Animate-Card([double]$targetLeft, [double]$targetTop, [int]$durationMs) {
+  try {
+    if ($null -ne $script:cardTimer) { $script:cardTimer.Stop() }
+    $script:cardFromLeft = $script:window.Left
+    $script:cardFromTop = $script:window.Top
+    $script:cardToLeft = $targetLeft
+    $script:cardToTop = $targetTop
+    $script:cardSteps = [Math]::Max(1, [int]($durationMs / 16))
+    $script:cardStep = 0
+    $script:cardTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:cardTimer.Interval = [TimeSpan]::FromMilliseconds(16)
+    $script:cardTimer.Add_Tick({
+      $script:cardStep += 1
+      $t = [Math]::Min(1.0, $script:cardStep / $script:cardSteps)
+      $ease = 1 - [Math]::Pow(1 - $t, 3)
+      $script:window.Left = $script:cardFromLeft + ($script:cardToLeft - $script:cardFromLeft) * $ease
+      $script:window.Top = $script:cardFromTop + ($script:cardToTop - $script:cardFromTop) * $ease
+      if ($t -ge 1.0) { $script:cardTimer.Stop() }
+    })
+    $script:cardTimer.Start()
   } catch {
   }
 }
 
+function Set-CardPosition {
+  $target = Get-CardTarget
+  $script:window.Left = $target.left
+  $script:window.Top = $target.top
+}
+
+
 $script:window.Add_Loaded({
-  Set-CardPosition
-  # Появление как у внутренних плашек: карточка мягко подъезжает снизу.
-  $script:finalTop = $script:window.Top
-  $script:animStep = 0
-  $script:animTimer = New-Object System.Windows.Threading.DispatcherTimer
-  $script:animTimer.Interval = [TimeSpan]::FromMilliseconds(15)
-  $script:animTimer.Add_Tick({
-    $script:animStep += 1
-    $progress = [Math]::Min(1.0, $script:animStep / 12.0)
-    $script:window.Top = $script:finalTop + (12 * (1 - $progress))
-    if ($progress -ge 1.0) { $script:animTimer.Stop() }
+  # Новая карточка вылетает из-за правого края экрана и проявляется.
+  $target = Get-CardTarget
+  $script:window.Top = $target.top
+  $entryWidth = $script:window.ActualWidth
+  if ($null -eq $entryWidth -or $entryWidth -le 0) { $entryWidth = $width }
+  $script:window.Left = $target.left + $entryWidth + 60
+  $script:window.Opacity = 0
+  $script:fadeStep = 0
+  $script:fadeTimer = New-Object System.Windows.Threading.DispatcherTimer
+  $script:fadeTimer.Interval = [TimeSpan]::FromMilliseconds(16)
+  $script:fadeTimer.Add_Tick({
+    $script:fadeStep += 1
+    $script:window.Opacity = [Math]::Min(1.0, $script:fadeStep / 12.0)
+    if ($script:fadeStep -ge 12) { $script:fadeTimer.Stop() }
   })
-  $script:animTimer.Start()
+  $script:fadeTimer.Start()
+  Animate-Card $target.left $target.top 300
   $script:startedAt = [DateTime]::Now
   if ($null -ne $json.startedAt) { try { $script:startedAt = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$json.startedAt).LocalDateTime } catch { } }
   $script:elapsedTimer = New-Object System.Windows.Threading.DispatcherTimer
@@ -796,7 +862,7 @@ $script:window.Add_Loaded({
   try {
     $script:window.Dispatcher.BeginInvoke(
       [System.Windows.Threading.DispatcherPriority]::ContextIdle,
-      [Action]{ Set-CardPosition }
+      [Action]{ $late = Get-CardTarget; Animate-Card $late.left $late.top 240 }
     ) | Out-Null
   } catch {
   }
