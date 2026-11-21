@@ -503,7 +503,7 @@ $root.BorderBrush = $borderBrush
 $root.BorderThickness = New-Object System.Windows.Thickness 1
 $shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
 $shadow.BlurRadius = 22
-$shadow.ShadowDepth = 5
+$shadow.ShadowDepth = 0
 $shadow.Opacity = 0.38
 $shadow.Color = [System.Windows.Media.Color]::FromArgb(255, 0, 0, 0)
 $root.Effect = $shadow
@@ -511,7 +511,7 @@ $script:window.Content = $root
 
 $grid = New-Object System.Windows.Controls.Grid
 $accentColumn = New-Object System.Windows.Controls.ColumnDefinition
-$accentColumn.Width = New-Object System.Windows.GridLength 4
+$accentColumn.Width = New-Object System.Windows.GridLength 5
 $bodyColumn = New-Object System.Windows.Controls.ColumnDefinition
 $bodyColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
 $grid.ColumnDefinitions.Add($accentColumn)
@@ -520,12 +520,12 @@ $root.Child = $grid
 
 $accentBar = New-Object System.Windows.Controls.Border
 $accentBar.Background = $accentBrush
-$accentBar.CornerRadius = New-Object System.Windows.CornerRadius 6, 0, 0, 6
+$accentBar.CornerRadius = New-Object System.Windows.CornerRadius 16, 0, 0, 16
 [System.Windows.Controls.Grid]::SetColumn($accentBar, 0)
 $grid.Children.Add($accentBar)
 
 $body = New-Object System.Windows.Controls.StackPanel
-$body.Margin = New-Object System.Windows.Thickness 14, 12, 14, 12
+$body.Margin = New-Object System.Windows.Thickness 18, 12, 14, 12
 [System.Windows.Controls.Grid]::SetColumn($body, 1)
 $grid.Children.Add($body)
 

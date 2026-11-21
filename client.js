@@ -1471,16 +1471,10 @@ window.__ModuleLoader__.load({
       /** The theme palette the Windows companion draws with. */
       function readPalette() {
         const mode = resolvedTheme(settings.get())
-        if (mode === 'dark' || mode === 'light') return { ...NATIVE_PALETTES[mode] }
-        return {
-          background: tokenColor('--dsw-alias-bg-overlay', '#F21E1F24'),
-          foreground: tokenColor('--dsw-alias-label-primary', '#F2F3F5'),
-          muted: tokenColor('--dsw-alias-label-secondary', '#9AA0A6'),
-          border: tokenColor('--dsw-alias-border-l2', '#33FFFFFF'),
-          done: tokenColor('--dsw-alias-state-success-primary', '#38C98A'),
-          attention: tokenColor('--dsw-alias-state-warn-primary', '#E8B341'),
-          error: tokenColor('--dsw-alias-state-error-primary', '#E05B5B'),
-        }
+        // Системная тема DSH тёмная: для нативной карточки берём тёмную палитру,
+        // иначе получается серая плашка с чужого фона.
+        if (mode !== 'light') return { ...NATIVE_PALETTES.dark }
+        return NATIVE_PALETTES.light
       }
 
       /** One authenticated call to the control route; null when it did not answer. */
