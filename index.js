@@ -772,6 +772,9 @@ export function apply(ctx) {
     }
     nativeCards.set(token, entry)
     nativeOrder.push(token)
+    // Повторяем раскладку чуть позже: карточка могла ещё не успеть открыться.
+    setTimeout(() => nativeSlots(), 250)
+    setTimeout(() => nativeSlots(), 700)
     // Не больше, чем влезает на экран: старейшие закрываем.
     while (nativeOrder.length > nativePresentation.maxCards) {
       const oldest = nativeOrder.shift()
