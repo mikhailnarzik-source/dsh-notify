@@ -1903,6 +1903,13 @@ window.__ModuleLoader__.load({
           sticky: item.sticky === true || item.reminder === true,
         }
         remember(record)
+        // Диагностика: сообщаем host, что событие дошло до отрисовки.
+        void fetch('/api/dsh-notify/control', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ type: 'client-toast', kind: record.kind, title: record.sessionTitle }),
+        }).catch(() => {})
         const config = settings.get()
         const focused = typeof document !== 'undefined' && document.hasFocus()
         const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden'

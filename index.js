@@ -1116,6 +1116,10 @@ export function apply(ctx) {
         return jsonResponse({ ok: showNativeCard(body), native: nativeSupported() })
       }
       // Self-update: the page reads the status, asks for a check, or installs.
+      if (body.type === 'client-toast') {
+        void appendLog('client-toast', true, String(body.kind ?? '') + ' · ' + String(body.title ?? '').slice(0, 40))
+        return jsonResponse({ ok: true })
+      }
       if (body.type === 'test-toast') {
         // Диагностика: показать тестовую плашку по запросу.
         publish({
