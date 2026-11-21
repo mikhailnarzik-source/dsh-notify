@@ -697,6 +697,7 @@ export function apply(ctx) {
     const clock = String(when.getHours()).padStart(2, "0") + ":" + String(when.getMinutes()).padStart(2, "0")
     const payload = {
       title,
+      kind,
       clock,
       subtitle: clip(String(request.subtitle ?? request.meta ?? ""), 160),
       muteLabel: clip(String(request.muteLabel ?? ""), 60),

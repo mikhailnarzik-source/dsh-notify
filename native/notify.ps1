@@ -546,9 +546,22 @@ $iconCircle.Margin = New-Object System.Windows.Thickness 0, 1, 11, 0
 $null = $header.Children.Add($iconCircle)
 
 $iconGlyph = New-Object System.Windows.Controls.TextBlock
+# Тип уведомления: из payload, иначе по цвету акцента (зелёный/оранжевый/красный).
+$notifyKind = [string]$json.kind
+if ([string]::IsNullOrWhiteSpace($notifyKind)) {
+  try {
+    $accentPlain = ($accentText -replace "^#(?:[0-9A-Fa-f]{2})?", "#").Substring(1)
+    $accentR = [Convert]::ToInt32($accentPlain.Substring(0, 2), 16)
+    $accentG = [Convert]::ToInt32($accentPlain.Substring(2, 2), 16)
+    $accentB = [Convert]::ToInt32($accentPlain.Substring(4, 2), 16)
+    if ($accentG -ge $accentR) { $notifyKind = "done" }
+    elseif (($accentG / [Math]::Max(1, $accentB)) -lt 1.4) { $notifyKind = "error" }
+    else { $notifyKind = "attention" }
+  } catch { $notifyKind = "done" }
+}
 $glyphText = [string][char]0x2713
-if ([string]$json.kind -eq "attention") { $glyphText = "!" }
-if ([string]$json.kind -eq "error") { $glyphText = [string][char]0x2715 }
+if ($notifyKind -eq "attention") { $glyphText = "!" }
+if ($notifyKind -eq "error") { $glyphText = [string][char]0x2715 }
 $iconGlyph.Text = $glyphText
 $iconGlyph.FontSize = 15
 $iconGlyph.FontWeight = [System.Windows.FontWeights]::Bold
