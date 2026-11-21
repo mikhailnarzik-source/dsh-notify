@@ -685,32 +685,79 @@ $open.Child = $openLabelText
 $open.Add_MouseEnter({ $hoverBg = Blend $accentText $backgroundText 0.2; $open.Background = Get-Brush $hoverBg $hoverBg })
 $open.Add_MouseLeave({ $open.Background = Get-Brush $openBg $openBg })
 
+# Кнопка звука: показывает состояние и оставшееся время приглушения.
+$script:mutedUntil = 0
+if ($null -ne $json.mutedUntil) { $script:mutedUntil = [long]$json.mutedUntil }
+
 $mute = New-Object System.Windows.Controls.Border
 $mute.CornerRadius = New-Object System.Windows.CornerRadius 8
-$muteBg = Blend $foregroundText $backgroundText 0.14
-$muteBorder = Blend $foregroundText $backgroundText 0.28
-$mute.Background = Get-Brush $muteBg $muteBg
-$mute.BorderBrush = Get-Brush $muteBorder $muteBorder
-$mute.BorderThickness = New-Object System.Windows.Thickness 1
-$mute.Padding = New-Object System.Windows.Thickness 7, 3, 7, 3
+$muteBorderThickness = New-Object System.Windows.Thickness 1
+$mute.Background = Get-Brush (Blend $foregroundText $backgroundText 0.10) (Blend $foregroundText $backgroundText 0.10)
+$mute.BorderBrush = Get-Brush (Blend $foregroundText $backgroundText 0.22) (Blend $foregroundText $backgroundText 0.22)
+$mute.BorderThickness = $muteBorderThickness
+$mute.Padding = New-Object System.Windows.Thickness 8, 3, 9, 3
 $mute.Margin = New-Object System.Windows.Thickness 6, 0, 0, 0
 $mute.Cursor = [System.Windows.Input.Cursors]::Hand
 $mute.ToolTip = [string]$json.muteLabel
 $null = $actions.Children.Add($mute)
 
+$muteContent = New-Object System.Windows.Controls.StackPanel
+$muteContent.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+$mute.Child = $muteContent
+
 $muteGlyph = New-Object System.Windows.Controls.TextBlock
 $muteGlyph.Text = [string][char]::ConvertFromUtf32(0x1F515)
-$muteGlyph.FontSize = 11
-$muteGlyph.Foreground = $mutedBrush
-$mute.Child = $muteGlyph
-$mute.Add_MouseEnter({ $muteGlyph.Foreground = $fgBrush })
-$mute.Add_MouseLeave({ $muteGlyph.Foreground = $mutedBrush })
+$muteGlyph.FontFamily = New-Object System.Windows.Media.FontFamily "Segoe UI Emoji"
+$muteGlyph.FontSize = 12
+$muteGlyph.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$null = $muteContent.Children.Add($muteGlyph)
+
+$muteLabelText = New-Object System.Windows.Controls.TextBlock
+$muteLabelText.Text = "15 мин"
+$muteLabelText.FontSize = 10.5
+$muteLabelText.Margin = New-Object System.Windows.Thickness 4, 0, 0, 0
+$muteLabelText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$null = $muteContent.Children.Add($muteLabelText)
+
+# Обновление вида кнопки: подсветка и обратный отсчёт, когда звук приглушён.
+function Update-MuteState {
+  try {
+    $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+    $leftMs = $script:mutedUntil - $nowMs
+    if ($leftMs -gt 0) {
+      $leftSeconds = [int]($leftMs / 1000)
+      $muteGlyph.Text = [string][char]::ConvertFromUtf32(0x1F514)
+      $muteGlyph.Foreground = $accentBrush
+      $muteLabelText.Text = ("{0}:{1:00}" -f [int]($leftSeconds / 60), ($leftSeconds % 60))
+      $muteLabelText.Foreground = $accentBrush
+      $muteActiveBg = Blend $accentText $backgroundText 0.20
+      $muteActiveBorder = Blend $accentText $backgroundText 0.55
+      $mute.Background = Get-Brush $muteActiveBg $muteActiveBg
+      $mute.BorderBrush = Get-Brush $muteActiveBorder $muteActiveBorder
+      $mute.ToolTip = "Включить звук"
+    } else {
+      $muteGlyph.Text = [string][char]::ConvertFromUtf32(0x1F515)
+      $muteGlyph.Foreground = $mutedBrush
+      $muteLabelText.Text = "15 мин"
+      $muteLabelText.Foreground = $mutedBrush
+      $muteIdleBg = Blend $foregroundText $backgroundText 0.10
+      $muteIdleBorder = Blend $foregroundText $backgroundText 0.22
+      $mute.Background = Get-Brush $muteIdleBg $muteIdleBg
+      $mute.BorderBrush = Get-Brush $muteIdleBorder $muteIdleBorder
+      $mute.ToolTip = [string]$json.muteLabel
+    }
+  } catch { }
+}
+
 $mute.Add_MouseLeftButtonUp({
+  $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
   if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
-    try { [System.IO.File]::WriteAllText($actionFile, "mute", [System.Text.Encoding]::UTF8) } catch { }
+    $command = if ($script:mutedUntil -gt $nowMs) { "unmute" } else { "mute" }
+    try { [System.IO.File]::WriteAllText($actionFile, $command, [System.Text.Encoding]::UTF8) } catch { }
   }
   Close-Card 11
 })
+
 
 $meta = New-Object System.Windows.Controls.StackPanel
 $meta.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
@@ -901,6 +948,7 @@ $script:window.Add_Loaded({
       }
     } catch { }
   })
+  Update-MuteState
   $script:elapsedTimer.Start()
   try {
     $script:window.SizeToContent = [System.Windows.SizeToContent]::Manual

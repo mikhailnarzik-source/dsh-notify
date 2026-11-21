@@ -117,6 +117,7 @@ window.__ModuleLoader__.load({
         open: 'Перейти',
         dismiss: 'Закрыть',
         muteAction: 'Без звука 15 мин',
+        unmuteAction: 'Включить звук',
         unitSec: 'с',
         unitMin: 'мин',
         unitHour: 'ч',
@@ -234,6 +235,7 @@ window.__ModuleLoader__.load({
         open: 'Open',
         dismiss: 'Dismiss',
         muteAction: 'Mute 15 min',
+        unmuteAction: 'Unmute',
         unitSec: 's',
         unitMin: 'm',
         unitHour: 'h',
@@ -389,6 +391,7 @@ window.__ModuleLoader__.load({
 .dsh-ntf-head .dsh-ntf-close,.dsh-ntf-compact .dsh-ntf-close{align-self:flex-start}
 .dsh-ntf-banner .dsh-ntf-close{align-self:center}
 .dsh-ntf-action{appearance:none;height:29px;padding:0 13px;border:1px solid color-mix(in srgb, var(--dsh-ntf-accent) 32%, transparent);border-radius:9px;background:color-mix(in srgb, var(--dsh-ntf-accent) 12%, transparent);color:var(--dsh-ntf-text);font:inherit;font-size:0.92em;font-weight:500;line-height:1.5em;cursor:pointer;transition:background .12s ease}
+.dsh-ntf-mute.is-on{background:color-mix(in srgb, var(--dsh-ntf-accent) 22%, transparent);border-color:color-mix(in srgb, var(--dsh-ntf-accent) 60%, transparent)}
 .dsh-ntf-action:hover{background:color-mix(in srgb, var(--dsh-ntf-accent) 20%, transparent)}
 .dsh-ntf-progress{position:absolute;right:0;bottom:0;left:0;height:2px;opacity:.45;background:var(--dsh-ntf-accent);transform-origin:left;animation-name:dsh-ntf-progress;animation-timing-function:linear;animation-fill-mode:forwards}
 .dsh-ntf-close:focus-visible,.dsh-ntf-action:focus-visible,.dsh-ntf-card:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
@@ -903,13 +906,13 @@ window.__ModuleLoader__.load({
       const mute = props.onMute
         ? h('button', {
             type: 'button',
-            className: 'dsh-ntf-action dsh-ntf-mute',
-            title: t('muteAction'),
+            className: 'dsh-ntf-action dsh-ntf-mute' + (props.muted === true ? ' is-on' : ''),
+            title: props.muted === true ? t('unmuteAction') : t('muteAction'),
             onClick: event => {
               event.stopPropagation()
-              props.onMute(15)
+              props.onMute(props.muted === true ? 0 : 15)
             },
-          }, '🔕')
+          }, props.muted === true ? '🔔' : '🔕')
         : null
       const progress = item.duration > 0 && !item.leaving
         ? h('span', { className: 'dsh-ntf-progress', style: { animationDuration: `${item.duration}ms` } })
@@ -1025,6 +1028,7 @@ window.__ModuleLoader__.load({
         fontStyle,
         onClose: controller.dismiss,
         onMute: controller.muteSound,
+        muted: Date.now() < (settings.get().mutedUntil ?? 0),
         onOpen: controller.openFromToast,
         onUpdate: controller.installUpdateFromToast,
       })))
@@ -1553,6 +1557,7 @@ window.__ModuleLoader__.load({
           meta: info.meta ?? '',
           subtitle: info.meta ?? '',
           muteLabel: t('muteAction'),
+          mutedUntil: settings.get().mutedUntil ?? 0,
           theme: resolvedTheme(settings.get()),
           windowTitle: pageTitle,
           record: {
@@ -1897,6 +1902,10 @@ window.__ModuleLoader__.load({
             muteSound(15)
             return
           }
+          if (item.action === 'unmute') {
+            muteSound(0)
+            return
+          }
           if (item.action === 'open' && typeof item.sessionId === 'string' && item.sessionId !== '') {
             // The Windows companion already raised the target window; focusing
             // from here would let another connected client (a browser tab of
@@ -2005,7 +2014,7 @@ window.__ModuleLoader__.load({
 
       /** Временно выключить звук, не трогая сами уведомления. */
       function muteSound(minutes = 15) {
-        update({ mutedUntil: Date.now() + minutes * 60 * 1000 })
+        update({ mutedUntil: minutes > 0 ? Date.now() + minutes * 60 * 1000 : 0 })
       }
 
       function requestPermission() {

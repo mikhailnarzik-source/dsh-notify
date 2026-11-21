@@ -712,6 +712,7 @@ export function apply(ctx) {
       subtitle: clip(String(request.subtitle ?? request.meta ?? ""), 160),
       theme: request.theme === "light" ? "light" : "dark",
       muteLabel: clip(String(request.muteLabel ?? ""), 60),
+      mutedUntil: Number.isFinite(request.mutedUntil) ? request.mutedUntil : 0,
       body: clip(String(request.body ?? ''), 200),
       meta: clip(String(request.meta ?? ''), 120),
       windowTitle,
@@ -820,6 +821,8 @@ export function apply(ctx) {
         publish({ kind: 'action', action: 'open', sessionId, token })
       } else if (action === 'mute') {
         publish({ kind: 'action', action: 'mute', sessionId, token })
+      } else if (action === 'unmute') {
+        publish({ kind: 'action', action: 'unmute', sessionId, token })
       } else if (code === 2 && entry.record !== null) {
         // The companion could not build the card; fall back to the in-app toast.
         publish({ ...entry.record, nativeFallback: true })
