@@ -498,7 +498,15 @@ $script:window.FontFamily = New-Object System.Windows.Media.FontFamily $fontFami
 
 $root = New-Object System.Windows.Controls.Border
 $root.CornerRadius = New-Object System.Windows.CornerRadius 16
-$root.Background = $bgBrush
+# Фон — градиент от цвета типа уведомления к тёмной основе DSH.
+$gradientStart = Get-Brush (Blend $accentText $backgroundText 0.26) $backgroundText
+$gradientEnd = Get-Brush (Blend $accentText $backgroundText 0.04) $backgroundText
+$gradientBrush = New-Object System.Windows.Media.LinearGradientBrush
+$gradientBrush.StartPoint = New-Object System.Windows.Point 0, 0
+$gradientBrush.EndPoint = New-Object System.Windows.Point 1, 1
+$gradientBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $gradientStart.Color, 0))
+$gradientBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $gradientEnd.Color, 1))
+$root.Background = $gradientBrush
 $root.BorderBrush = $borderBrush
 $root.BorderThickness = New-Object System.Windows.Thickness 1
 $shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
@@ -509,25 +517,9 @@ $shadow.Color = [System.Windows.Media.Color]::FromArgb(255, 0, 0, 0)
 $root.Effect = $shadow
 $script:window.Content = $root
 
-$grid = New-Object System.Windows.Controls.Grid
-$accentColumn = New-Object System.Windows.Controls.ColumnDefinition
-$accentColumn.Width = New-Object System.Windows.GridLength 5
-$bodyColumn = New-Object System.Windows.Controls.ColumnDefinition
-$bodyColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
-$grid.ColumnDefinitions.Add($accentColumn)
-$grid.ColumnDefinitions.Add($bodyColumn)
-$root.Child = $grid
-
-$accentBar = New-Object System.Windows.Controls.Border
-$accentBar.Background = $accentBrush
-$accentBar.CornerRadius = New-Object System.Windows.CornerRadius 16, 0, 0, 16
-[System.Windows.Controls.Grid]::SetColumn($accentBar, 0)
-$grid.Children.Add($accentBar)
-
 $body = New-Object System.Windows.Controls.StackPanel
-$body.Margin = New-Object System.Windows.Thickness 18, 12, 14, 12
-[System.Windows.Controls.Grid]::SetColumn($body, 1)
-$grid.Children.Add($body)
+$body.Margin = New-Object System.Windows.Thickness 16, 12, 14, 12
+$root.Child = $body
 
 $header = New-Object System.Windows.Controls.Grid
 $titleColumn = New-Object System.Windows.Controls.ColumnDefinition
