@@ -1273,7 +1273,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     let stopped = false
     const startup = setTimeout(() => {
-    if (!stopped) void runUpdateCheck()
+    if (!stopped) void runUpdateCheck().catch(() => {})
     // plugin-check-startup: проверяем все наши плагины и предлагаем обновить.
     if (!stopped) {
       void checkAllPlugins().then((state) => {
@@ -1291,7 +1291,7 @@ export function apply(ctx) {
     }
   }, UPDATE_CHECK_DELAY_MS)
     const periodic = setInterval(() => {
-      if (!stopped) void runUpdateCheck()
+      if (!stopped) void runUpdateCheck().catch(() => {})
     }, UPDATE_RECHECK_MS)
     if (typeof periodic.unref === 'function') periodic.unref()
     return () => {
