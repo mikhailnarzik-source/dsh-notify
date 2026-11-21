@@ -455,13 +455,18 @@ if ($DryRun) {
 }
 
 function Blend([string]$foreground, [string]$background, [double]$amount) {
+  # Понимает и #RRGGBB, и #AARRGGBB: иначе все смешения молча падали в фон.
   try {
-    $fg = ($foreground -replace '^#(?:[0-9A-Fa-f]{2})?', '#').Substring(1)
-    $bg = ($background -replace '^#(?:[0-9A-Fa-f]{2})?', '#').Substring(1)
+    $fg = $foreground.Trim()
+    if ($fg.StartsWith("#")) { $fg = $fg.Substring(1) }
+    if ($fg.Length -eq 8) { $fg = $fg.Substring(2) }
+    $bg = $background.Trim()
+    if ($bg.StartsWith("#")) { $bg = $bg.Substring(1) }
+    if ($bg.Length -eq 8) { $bg = $bg.Substring(2) }
     $r = [Math]::Round([Convert]::ToInt32($fg.Substring(0, 2), 16) * $amount + [Convert]::ToInt32($bg.Substring(0, 2), 16) * (1 - $amount))
     $g = [Math]::Round([Convert]::ToInt32($fg.Substring(2, 2), 16) * $amount + [Convert]::ToInt32($bg.Substring(2, 2), 16) * (1 - $amount))
     $b = [Math]::Round([Convert]::ToInt32($fg.Substring(4, 2), 16) * $amount + [Convert]::ToInt32($bg.Substring(4, 2), 16) * (1 - $amount))
-    return ('#{0:X2}{1:X2}{2:X2}' -f [Math]::Min(255, $r), [Math]::Min(255, $g), [Math]::Min(255, $b))
+    return ("#{0:X2}{1:X2}{2:X2}" -f [Math]::Min(255, $r), [Math]::Min(255, $g), [Math]::Min(255, $b))
   } catch {
     return $background
   }
@@ -499,7 +504,7 @@ $script:window.FontFamily = New-Object System.Windows.Media.FontFamily $fontFami
 $root = New-Object System.Windows.Controls.Border
 $root.CornerRadius = New-Object System.Windows.CornerRadius 16
 # Фон — градиент от цвета типа уведомления к тёмной основе DSH.
-$gradientStart = Get-Brush (Blend $accentText $backgroundText 0.34) $backgroundText
+$gradientStart = Get-Brush (Blend $accentText $backgroundText 0.45) $backgroundText
 $gradientEnd = Get-Brush (Blend $accentText $backgroundText 0.04) $backgroundText
 $gradientBrush = New-Object System.Windows.Media.LinearGradientBrush
 $gradientBrush.StartPoint = New-Object System.Windows.Point 0, 0
@@ -519,6 +524,7 @@ $script:window.Content = $root
 
 $body = New-Object System.Windows.Controls.StackPanel
 $body.Margin = New-Object System.Windows.Thickness 16, 13, 14, 12
+$body.Width = $width - 30
 $root.Child = $body
 
 # Заголовок: иконка типа, два текста и кнопка закрытия — как во внутренних плашках.
@@ -538,8 +544,11 @@ $iconCircle = New-Object System.Windows.Controls.Border
 $iconCircle.Width = 32
 $iconCircle.Height = 32
 $iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 16
-$iconBg = Blend $accentText $backgroundText 0.16
+$iconBg = Blend $accentText $backgroundText 0.30
 $iconCircle.Background = Get-Brush $iconBg $iconBg
+$iconBorder = Blend $accentText $backgroundText 0.55
+$iconCircle.BorderBrush = Get-Brush $iconBorder $iconBorder
+$iconCircle.BorderThickness = New-Object System.Windows.Thickness 1
 $iconCircle.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
 $iconCircle.Margin = New-Object System.Windows.Thickness 0, 1, 11, 0
 [System.Windows.Controls.Grid]::SetColumn($iconCircle, 0)
@@ -639,6 +648,7 @@ $bodyText.Margin = New-Object System.Windows.Thickness 0, 9, 0, 0
 $bodyText.FontSize = $bodySize
 $bodyText.Foreground = $fgBrush
 $bodyText.TextWrapping = [System.Windows.TextWrapping]::Wrap
+$bodyText.Width = $width - 30
 $bodyText.FontWeight = $weightValue
 $bodyText.FontStyle = $styleValue
 $null = $body.Children.Add($bodyText)
@@ -659,18 +669,18 @@ $null = $body.Children.Add($footer)
 
 $open = New-Object System.Windows.Controls.Border
 $open.CornerRadius = New-Object System.Windows.CornerRadius 9
-$openBg = Blend $accentText $backgroundText 0.12
-$openBorder = Blend $accentText $backgroundText 0.32
+$openBg = Blend $accentText $backgroundText 0.24
+$openBorder = Blend $accentText $backgroundText 0.6
 $open.Background = Get-Brush $openBg $openBg
 $open.BorderBrush = Get-Brush $openBorder $openBorder
 $open.BorderThickness = New-Object System.Windows.Thickness 1
-$open.Padding = New-Object System.Windows.Thickness 14, 6, 14, 6
+$open.Padding = New-Object System.Windows.Thickness 16, 7, 16, 7
 $open.Cursor = [System.Windows.Input.Cursors]::Hand
 $null = $footerLeft.Children.Add($open)
 
 $openLabelText = New-Object System.Windows.Controls.TextBlock
 $openLabelText.Text = $openLabel
-$openLabelText.FontSize = 12.5
+$openLabelText.FontSize = 13
 $openLabelText.FontWeight = [System.Windows.FontWeights]::SemiBold
 $openLabelText.Foreground = $accentBrush
 $open.Child = $openLabelText
@@ -680,8 +690,8 @@ $open.Add_MouseLeave({ $open.Background = Get-Brush $openBg $openBg })
 # Кнопка приглушения звука — та же, что во внутренних плашках.
 $mute = New-Object System.Windows.Controls.Border
 $mute.CornerRadius = New-Object System.Windows.CornerRadius 9
-$muteBg = Blend $foregroundText $backgroundText 0.08
-$muteBorder = Blend $foregroundText $backgroundText 0.16
+$muteBg = Blend $foregroundText $backgroundText 0.14
+$muteBorder = Blend $foregroundText $backgroundText 0.28
 $mute.Background = Get-Brush $muteBg $muteBg
 $mute.BorderBrush = Get-Brush $muteBorder $muteBorder
 $mute.BorderThickness = New-Object System.Windows.Thickness 1
@@ -711,9 +721,9 @@ $clockText.Text = [string]$json.clock
 $clockText.FontSize = $metaSize
 $clockText.Foreground = $mutedBrush
 $clockText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$clockText.Margin = New-Object System.Windows.Thickness 12, 0, 0, 0
 $clockText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
-[System.Windows.Controls.Grid]::SetColumn($clockText, 1)
-$null = $footer.Children.Add($clockText)
+$null = $footerLeft.Children.Add($clockText)
 
 function Request-Open {
   if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
@@ -779,6 +789,14 @@ $script:window.Add_Loaded({
     if ($progress -ge 1.0) { $script:animTimer.Stop() }
   })
   $script:animTimer.Start()
+  try {
+    $script:window.SizeToContent = [System.Windows.SizeToContent]::Manual
+    $probe = New-Object System.Windows.Size (($width - 30), [double]::PositiveInfinity)
+    $body.Measure($probe)
+    $needed = [Math]::Ceiling($body.DesiredSize.Height) + 28
+    if ($needed -gt 40) { $script:window.Height = $needed }
+  } catch {
+  }
   # Ещё раз после отрисовки: высота карточки становится известна только тогда.
   try {
     $script:window.Dispatcher.BeginInvoke(
