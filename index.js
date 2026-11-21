@@ -56,8 +56,8 @@ export const CONTROL_PATH = '/api/dsh-notify/control'
 /** This installed package, the directory a self-update replaces files in. */
 export const PACKAGE_DIR = dirname(fileURLToPath(import.meta.url))
 
-/** At most this many always-on-top cards live at once. */
-export const MAX_NATIVE_CARDS = 3
+/** Сколько карточек влезает на экран; страница присылает расчёт по высоте экрана. */
+export const MAX_NATIVE_CARDS = 8
 
 /** The Windows companion that draws the card above every other application. */
 const NATIVE_SCRIPT = fileURLToPath(new URL('./native/notify.ps1', import.meta.url))
@@ -210,6 +210,7 @@ export function apply(ctx) {
   let nativePresentation = {
     enabled: true,
     gameMode: false,
+    maxCards: 3,
     corner: 'top-right',
     durationMs: 6000,
     width: 384,
@@ -227,6 +228,8 @@ export function apply(ctx) {
   }
   /** Live always-on-top cards, keyed by the page's token. */
   const nativeCards = new Map()
+  /** Токены в порядке появления: последний — самый новый (нижний слот). */
+  const nativeOrder = []
   let nativeOffset = 0
 
   /** Publish one record, waking every parked poll. */
@@ -657,6 +660,7 @@ export function apply(ctx) {
       enabled: value.enabled !== false,
       gameMode: value.gameMode === true,
       corner: corners.includes(value.corner) ? value.corner : base.corner,
+      maxCards: Number.isFinite(value.maxCards) ? Math.max(1, Math.min(8, Math.round(value.maxCards))) : base.maxCards,
       durationMs: Number.isFinite(value.durationMs) ? Math.max(0, Math.min(60_000, Math.round(value.durationMs))) : base.durationMs,
       width: Number.isFinite(value.width) ? Math.max(260, Math.min(560, Math.round(value.width))) : base.width,
       labels: {
@@ -685,6 +689,7 @@ export function apply(ctx) {
   function showNativeCard(request) {
     if (!nativeSupported() || nativePresentation.enabled !== true || nativePresentation.gameMode === true) return false
     const title = clip(String(request.title ?? ''), 120)
+    const sessionIdForCard = typeof request.sessionId === 'string' ? request.sessionId : ''
     if (title === '') return false
     const kind = request.kind === 'attention' || request.kind === 'error' ? request.kind : 'done'
     const palette = nativePresentation.palette
@@ -695,10 +700,15 @@ export function apply(ctx) {
     const windowTitle = typeof request.windowTitle === 'string' ? request.windowTitle.trim().slice(0, 160) : ''
     const when = request.record !== null && typeof request.record === "object" && Number.isFinite(request.record.at) ? new Date(request.record.at) : new Date()
     const clock = String(when.getHours()).padStart(2, "0") + ":" + String(when.getMinutes()).padStart(2, "0")
+    const stamp = String(when.getHours()).padStart(2, "0") + ":" + String(when.getMinutes()).padStart(2, "0") + " · " + String(when.getDate()).padStart(2, "0") + "." + String(when.getMonth() + 1).padStart(2, "0")
+    // Новая карточка той же сессии заменяет старую; остальные опускаются.
+    if (sessionIdForCard !== '') killNativeCards(sessionIdForCard)
     const payload = {
       title,
       kind,
       clock,
+      stamp,
+      startedAt: Date.now(),
       subtitle: clip(String(request.subtitle ?? request.meta ?? ""), 160),
       muteLabel: clip(String(request.muteLabel ?? ""), 60),
       body: clip(String(request.body ?? ''), 200),
@@ -720,7 +730,7 @@ export function apply(ctx) {
       weight: nativePresentation.fonts.weight,
       italic: nativePresentation.fonts.italic,
       corner: nativePresentation.corner,
-      offset: nativeCards.size,
+      slot: Math.min(nativeCards.size, nativePresentation.maxCards - 1),
       width: nativePresentation.width,
       durationMs: nativePresentation.durationMs,
     }
@@ -760,6 +770,18 @@ export function apply(ctx) {
       record: request.record !== null && typeof request.record === 'object' ? request.record : null,
     }
     nativeCards.set(token, entry)
+    nativeOrder.push(token)
+    // Не больше, чем влезает на экран: старейшие закрываем.
+    while (nativeOrder.length > nativePresentation.maxCards) {
+      const oldest = nativeOrder.shift()
+      const oldEntry = oldest === undefined ? undefined : nativeCards.get(oldest)
+      if (oldest !== undefined && oldEntry !== undefined) {
+        nativeCards.delete(oldest)
+        try { oldEntry.child.kill() } catch { /* уже закрыта */ }
+        try { rmSync(oldEntry.actionFile, { force: true }) } catch { /* best effort */ }
+      }
+    }
+    nativeSlots()
     if (nativeCards.size > MAX_NATIVE_CARDS) {
       const oldestKey = nativeCards.keys().next().value
       if (oldestKey !== undefined && oldestKey !== token) {
@@ -802,6 +824,21 @@ export function apply(ctx) {
     return true
   }
 
+  /** Пересчитать слоты и разослать команды перемещения всем живым карточкам. */
+  function nativeSlots() {
+    const total = nativeOrder.length
+    for (let index = 0; index < total; index += 1) {
+      const entry = nativeCards.get(nativeOrder[index])
+      if (entry === undefined) continue
+      const slot = total - 1 - index
+      try {
+        writeFileSync(entry.actionFile, 'slot:' + slot, 'utf8')
+      } catch {
+        // карточка уже закрылась
+      }
+    }
+  }
+
   /** Close native cards, for one Session or (with no argument) every card. */
   function killNativeCards(sessionId) {
     for (const [token, entry] of nativeCards) {
@@ -818,6 +855,10 @@ export function apply(ctx) {
         // Best effort.
       }
     }
+    for (let index = nativeOrder.length - 1; index >= 0; index -= 1) {
+      if (nativeCards.has(nativeOrder[index]) === false) nativeOrder.splice(index, 1)
+    }
+    nativeSlots()
   }
 
   ctx.effect(() => () => killNativeCards(), 'notify: native cards')

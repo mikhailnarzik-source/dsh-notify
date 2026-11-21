@@ -497,7 +497,8 @@ $script:window.Topmost = $true
 $script:window.ShowInTaskbar = $false
 $script:window.ShowActivated = $false
 $script:window.ResizeMode = [System.Windows.ResizeMode]::NoResize
-$script:window.SizeToContent = [System.Windows.SizeToContent]::Height
+$script:window.SizeToContent = [System.Windows.SizeToContent]::Manual
+$script:window.Height = 96
 $script:window.Width = $width
 $script:window.FontFamily = New-Object System.Windows.Media.FontFamily $fontFamilyName
 
@@ -523,11 +524,11 @@ $root.Effect = $shadow
 $script:window.Content = $root
 
 $body = New-Object System.Windows.Controls.StackPanel
-$body.Margin = New-Object System.Windows.Thickness 16, 13, 14, 12
-$body.Width = $width - 30
+$body.Margin = New-Object System.Windows.Thickness 12, 9, 12, 9
+$body.Width = $width - 24
 $root.Child = $body
 
-# Заголовок: иконка типа, два текста и кнопка закрытия — как во внутренних плашках.
+# Компактный заголовок: иконка, название, крестик.
 $header = New-Object System.Windows.Controls.Grid
 $iconColumn = New-Object System.Windows.Controls.ColumnDefinition
 $iconColumn.Width = New-Object System.Windows.GridLength 0, ([System.Windows.GridUnitType]::Auto)
@@ -541,21 +542,20 @@ $header.ColumnDefinitions.Add($closeColumn)
 $null = $body.Children.Add($header)
 
 $iconCircle = New-Object System.Windows.Controls.Border
-$iconCircle.Width = 32
-$iconCircle.Height = 32
-$iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 16
+$iconCircle.Width = 24
+$iconCircle.Height = 24
+$iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 12
 $iconBg = Blend $accentText $backgroundText 0.30
-$iconCircle.Background = Get-Brush $iconBg $iconBg
 $iconBorder = Blend $accentText $backgroundText 0.55
+$iconCircle.Background = Get-Brush $iconBg $iconBg
 $iconCircle.BorderBrush = Get-Brush $iconBorder $iconBorder
 $iconCircle.BorderThickness = New-Object System.Windows.Thickness 1
-$iconCircle.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
-$iconCircle.Margin = New-Object System.Windows.Thickness 0, 1, 11, 0
+$iconCircle.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$iconCircle.Margin = New-Object System.Windows.Thickness 0, 0, 9, 0
 [System.Windows.Controls.Grid]::SetColumn($iconCircle, 0)
 $null = $header.Children.Add($iconCircle)
 
 $iconGlyph = New-Object System.Windows.Controls.TextBlock
-# Тип уведомления: из payload, иначе по цвету акцента (зелёный/оранжевый/красный).
 $notifyKind = [string]$json.kind
 if ([string]::IsNullOrWhiteSpace($notifyKind)) {
   try {
@@ -572,7 +572,7 @@ $glyphText = [string][char]0x2713
 if ($notifyKind -eq "attention") { $glyphText = "!" }
 if ($notifyKind -eq "error") { $glyphText = [string][char]0x2715 }
 $iconGlyph.Text = $glyphText
-$iconGlyph.FontSize = 15
+$iconGlyph.FontSize = 12
 $iconGlyph.FontWeight = [System.Windows.FontWeights]::Bold
 $iconGlyph.Foreground = $accentBrush
 $iconGlyph.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -586,30 +586,30 @@ $null = $header.Children.Add($heading)
 
 $title = New-Object System.Windows.Controls.TextBlock
 $title.Text = [string]$json.title
-$title.FontSize = $titleSize
+$title.FontSize = 13.5
 $title.FontWeight = [System.Windows.FontWeights]::SemiBold
 $title.Foreground = $fgBrush
-$title.TextWrapping = [System.Windows.TextWrapping]::Wrap
+$title.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
 $title.FontStyle = $styleValue
 $null = $heading.Children.Add($title)
 
 $subtitleText = [string]$json.subtitle
 if ([string]::IsNullOrWhiteSpace($subtitleText)) { $subtitleText = [string]$json.meta }
-if (-not [string]::IsNullOrWhiteSpace($subtitleText)) {
+if (-not [string]::IsNullOrWhiteSpace($subtitleText) -and $subtitleText.Trim() -ne ([string]$json.title).Trim()) {
   $subtitle = New-Object System.Windows.Controls.TextBlock
   $subtitle.Text = $subtitleText
-  $subtitle.Margin = New-Object System.Windows.Thickness 0, 2, 0, 0
-  $subtitle.FontSize = $metaSize
+  $subtitle.Margin = New-Object System.Windows.Thickness 0, 1, 0, 0
+  $subtitle.FontSize = 11
   $subtitle.Foreground = $mutedBrush
-  $subtitle.TextWrapping = [System.Windows.TextWrapping]::Wrap
+  $subtitle.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
   $subtitle.FontStyle = $styleValue
   $null = $heading.Children.Add($subtitle)
 }
 
 $close = New-Object System.Windows.Controls.Border
-$close.Width = 30
-$close.Height = 30
-$close.CornerRadius = New-Object System.Windows.CornerRadius 15
+$close.Width = 24
+$close.Height = 24
+$close.CornerRadius = New-Object System.Windows.CornerRadius 12
 $closeBg = Blend $foregroundText $backgroundText 0.07
 $close.Background = Get-Brush $closeBg $closeBg
 $close.Cursor = [System.Windows.Input.Cursors]::Hand
@@ -620,90 +620,59 @@ $null = $header.Children.Add($close)
 
 $closeGlyph = New-Object System.Windows.Controls.TextBlock
 $closeGlyph.Text = [string][char]0x2715
-$closeGlyph.FontSize = 15
-$closeGlyph.FontWeight = [System.Windows.FontWeights]::Normal
+$closeGlyph.FontSize = 12
 $closeGlyph.Foreground = $mutedBrush
 $closeGlyph.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 $closeGlyph.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-$closeGlyph.Margin = New-Object System.Windows.Thickness 0, -1, 0, 0
 $close.Child = $closeGlyph
+$close.Add_MouseEnter({ $closeHoverBg = Blend $foregroundText $backgroundText 0.16; $close.Background = Get-Brush $closeHoverBg $closeHoverBg; $closeGlyph.Foreground = $fgBrush })
+$close.Add_MouseLeave({ $close.Background = Get-Brush $closeBg $closeBg; $closeGlyph.Foreground = $mutedBrush })
+$close.Add_MouseLeftButtonUp({ $script:result = 0; $script:window.Close() })
 
-$close.Add_MouseEnter({
-  $closeHoverBg = Blend $foregroundText $backgroundText 0.16
-  $close.Background = Get-Brush $closeHoverBg $closeHoverBg
-  $closeGlyph.Foreground = $fgBrush
-})
-$close.Add_MouseLeave({
-  $close.Background = Get-Brush $closeBg $closeBg
-  $closeGlyph.Foreground = $mutedBrush
-})
-$close.Add_MouseLeftButtonUp({
-  $script:result = 0
-  $script:window.Close()
-})
-
-$bodyText = New-Object System.Windows.Controls.TextBlock
-$bodyText.Text = [string]$json.body
-$bodyText.Margin = New-Object System.Windows.Thickness 0, 9, 0, 0
-$bodyText.FontSize = $bodySize
-$bodyText.Foreground = $fgBrush
-$bodyText.TextWrapping = [System.Windows.TextWrapping]::Wrap
-$bodyText.Width = $width - 30
-$bodyText.FontWeight = $weightValue
-$bodyText.FontStyle = $styleValue
-$null = $body.Children.Add($bodyText)
-
-# Нижняя строка: кнопки и время, как на внутренних плашках.
+# Нижняя строка: действия, время с датой и таймер.
 $footer = New-Object System.Windows.Controls.Grid
-$footer.Margin = New-Object System.Windows.Thickness 0, 12, 0, 0
+$footer.Margin = New-Object System.Windows.Thickness 0, 7, 0, 0
 $footerLeft = New-Object System.Windows.Controls.StackPanel
 $footerLeft.Orientation = [System.Windows.Controls.Orientation]::Horizontal
-$footerLeftColumn = New-Object System.Windows.Controls.ColumnDefinition
-$footerLeftColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
-$footerTimeColumn = New-Object System.Windows.Controls.ColumnDefinition
-$footerTimeColumn.Width = New-Object System.Windows.GridLength 0, ([System.Windows.GridUnitType]::Auto)
-$footer.ColumnDefinitions.Add($footerLeftColumn)
-$footer.ColumnDefinitions.Add($footerTimeColumn)
-$null = $footer.Children.Add($footerLeft)
+$footer.Children.Add($footerLeft)
 $null = $body.Children.Add($footer)
 
 $open = New-Object System.Windows.Controls.Border
-$open.CornerRadius = New-Object System.Windows.CornerRadius 9
+$open.CornerRadius = New-Object System.Windows.CornerRadius 8
 $openBg = Blend $accentText $backgroundText 0.24
 $openBorder = Blend $accentText $backgroundText 0.6
 $open.Background = Get-Brush $openBg $openBg
 $open.BorderBrush = Get-Brush $openBorder $openBorder
 $open.BorderThickness = New-Object System.Windows.Thickness 1
-$open.Padding = New-Object System.Windows.Thickness 16, 7, 16, 7
+$open.Padding = New-Object System.Windows.Thickness 12, 4, 12, 4
 $open.Cursor = [System.Windows.Input.Cursors]::Hand
 $null = $footerLeft.Children.Add($open)
 
 $openLabelText = New-Object System.Windows.Controls.TextBlock
 $openLabelText.Text = $openLabel
-$openLabelText.FontSize = 13
+$openLabelText.FontSize = 12
 $openLabelText.FontWeight = [System.Windows.FontWeights]::SemiBold
 $openLabelText.Foreground = $accentBrush
 $open.Child = $openLabelText
 $open.Add_MouseEnter({ $hoverBg = Blend $accentText $backgroundText 0.2; $open.Background = Get-Brush $hoverBg $hoverBg })
 $open.Add_MouseLeave({ $open.Background = Get-Brush $openBg $openBg })
 
-# Кнопка приглушения звука — та же, что во внутренних плашках.
 $mute = New-Object System.Windows.Controls.Border
-$mute.CornerRadius = New-Object System.Windows.CornerRadius 9
+$mute.CornerRadius = New-Object System.Windows.CornerRadius 8
 $muteBg = Blend $foregroundText $backgroundText 0.14
 $muteBorder = Blend $foregroundText $backgroundText 0.28
 $mute.Background = Get-Brush $muteBg $muteBg
 $mute.BorderBrush = Get-Brush $muteBorder $muteBorder
 $mute.BorderThickness = New-Object System.Windows.Thickness 1
-$mute.Padding = New-Object System.Windows.Thickness 10, 5, 10, 5
-$mute.Margin = New-Object System.Windows.Thickness 8, 0, 0, 0
+$mute.Padding = New-Object System.Windows.Thickness 8, 4, 8, 4
+$mute.Margin = New-Object System.Windows.Thickness 6, 0, 0, 0
 $mute.Cursor = [System.Windows.Input.Cursors]::Hand
 $mute.ToolTip = [string]$json.muteLabel
 $null = $footerLeft.Children.Add($mute)
 
 $muteGlyph = New-Object System.Windows.Controls.TextBlock
 $muteGlyph.Text = [string][char]::ConvertFromUtf32(0x1F515)
-$muteGlyph.FontSize = 12.5
+$muteGlyph.FontSize = 11
 $muteGlyph.Foreground = $mutedBrush
 $mute.Child = $muteGlyph
 $mute.Add_MouseEnter({ $muteGlyph.Foreground = $fgBrush })
@@ -716,14 +685,21 @@ $mute.Add_MouseLeftButtonUp({
   $script:window.Close()
 })
 
-$clockText = New-Object System.Windows.Controls.TextBlock
-$clockText.Text = [string]$json.clock
-$clockText.FontSize = $metaSize
-$clockText.Foreground = $mutedBrush
-$clockText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-$clockText.Margin = New-Object System.Windows.Thickness 12, 0, 0, 0
-$clockText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
-$null = $footerLeft.Children.Add($clockText)
+$stampText = New-Object System.Windows.Controls.TextBlock
+$stampText.Text = [string]$json.stamp
+$stampText.FontSize = 10.5
+$stampText.Foreground = $mutedBrush
+$stampText.Margin = New-Object System.Windows.Thickness 10, 0, 0, 0
+$stampText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$null = $footerLeft.Children.Add($stampText)
+
+$elapsedText = New-Object System.Windows.Controls.TextBlock
+$elapsedText.Text = "0:00"
+$elapsedText.FontSize = 10.5
+$elapsedText.Foreground = $mutedBrush
+$elapsedText.Margin = New-Object System.Windows.Thickness 8, 0, 0, 0
+$elapsedText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$null = $footerLeft.Children.Add($elapsedText)
 
 function Request-Open {
   if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
@@ -758,17 +734,15 @@ function Set-CardPosition {
     $area = [System.Windows.SystemParameters]::WorkArea
     $cardWidth = $script:window.ActualWidth
     if ($null -eq $cardWidth -or $cardWidth -le 0) { $cardWidth = $script:window.Width }
-    if ($null -eq $cardWidth -or $cardWidth -le 0) { $cardWidth = $width }
     $cardHeight = $script:window.ActualHeight
-    if ($null -eq $cardHeight -or $cardHeight -le 0) { $cardHeight = 130 }
-    $gap = 20
-    $stack = $offset * ($cardHeight + 10)
-    $left = if ($corner -like '*-right') { $area.Right - $cardWidth - $gap } else { $area.Left + $gap }
-    $top = if ($corner -like 'top-*') { $area.Top + $gap + $stack } else { $area.Bottom - $cardHeight - $gap - $stack }
-    if ($left -lt $area.Left) { $left = $area.Left + $gap }
-    if ($left + $cardWidth -gt $area.Right) { $left = $area.Right - $cardWidth - $gap }
-    if ($top -lt $area.Top) { $top = $area.Top + $gap }
-    if ($top + $cardHeight -gt $area.Bottom) { $top = $area.Bottom - $cardHeight - $gap }
+    if ($null -eq $cardHeight -or $cardHeight -le 0) { $cardHeight = 96 }
+    $gap = 10
+    $slot = 0
+    if ($null -ne $json.slot) { $slot = [Math]::Max(0, [int]$json.slot) } elseif ($null -ne $json.offset) { $slot = [Math]::Max(0, [int]$json.offset) }
+    $left = if ($corner -like '*-right') { $area.Right - $cardWidth - 16 } else { $area.Left + 16 }
+    $top = if ($corner -like 'top-*') { $area.Top + 16 + $slot * ($cardHeight + $gap) } else { $area.Bottom - $cardHeight - 16 - $slot * ($cardHeight + $gap) }
+    if ($left -lt $area.Left) { $left = $area.Left + 16 }
+    if ($top -lt $area.Top) { $top = $area.Top + 16 }
     $script:window.Left = $left
     $script:window.Top = $top
   } catch {
@@ -789,6 +763,27 @@ $script:window.Add_Loaded({
     if ($progress -ge 1.0) { $script:animTimer.Stop() }
   })
   $script:animTimer.Start()
+  $script:startedAt = [DateTime]::Now
+  if ($null -ne $json.startedAt) { try { $script:startedAt = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$json.startedAt).LocalDateTime } catch { } }
+  $script:elapsedTimer = New-Object System.Windows.Threading.DispatcherTimer
+  $script:elapsedTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+  $script:elapsedTimer.Add_Tick({
+    try {
+      $seconds = [int]([DateTime]::Now - $script:startedAt).TotalSeconds
+      if ($seconds -lt 0) { $seconds = 0 }
+      $elapsedText.Text = ("{0}:{1:00}" -f [int]($seconds / 60), ($seconds % 60))
+      if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
+        $raw = ""
+        try { $raw = [System.IO.File]::ReadAllText($actionFile) } catch { }
+        if ($raw.StartsWith("slot:")) {
+          try { $json.slot = [int]$raw.Substring(5) } catch { }
+          Set-CardPosition
+          try { [System.IO.File]::WriteAllText($actionFile, "", [System.Text.Encoding]::UTF8) } catch { }
+        }
+      }
+    } catch { }
+  })
+  $script:elapsedTimer.Start()
   try {
     $script:window.SizeToContent = [System.Windows.SizeToContent]::Manual
     $probe = New-Object System.Windows.Size (($width - 30), [double]::PositiveInfinity)

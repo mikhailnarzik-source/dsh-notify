@@ -1515,7 +1515,13 @@ window.__ModuleLoader__.load({
             gameMode: config.gameMode === true,
             corner: pick(config.position, POSITIONS, DEFAULTS.position),
             durationMs: config.duration,
-            width: 384,
+            width: 340,
+            maxCards: (() => {
+              try {
+                const height = typeof window !== 'undefined' && window.screen ? Number(window.screen.availHeight) || 1080 : 1080
+                return Math.max(1, Math.min(8, Math.floor((height - 120) / 100)))
+              } catch { return 6 }
+            })(),
             labels: { open: t('open'), dismiss: t('dismiss') },
             palette: readPalette(),
             fonts: {
