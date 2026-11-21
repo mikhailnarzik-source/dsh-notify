@@ -830,6 +830,7 @@ let nativeSpawnTimer = null
     // Не больше, чем влезает на экран: старейшие закрываем.
     while (nativeOrder.length > nativePresentation.maxCards) {
       const oldest = nativeOrder.shift()
+      void appendLog('native-max', true, 'kill=' + String(oldest) + ' order=' + nativeOrder.length)
       const oldEntry = oldest === undefined ? undefined : nativeCards.get(oldest)
       if (oldest !== undefined && oldEntry !== undefined) {
         nativeCards.delete(oldest)
@@ -899,6 +900,7 @@ let nativeSpawnTimer = null
 
   /** Close native cards, for one Session or (with no argument) every card. */
   function killNativeCards(sessionId) {
+    void appendLog('native-kill', true, 'session=' + String(sessionId) + ' live=' + nativeCards.size + ' order=' + nativeOrder.length)
     for (const [token, entry] of nativeCards) {
       if (sessionId !== undefined && sessionId !== '' && entry.sessionId !== sessionId && entry.matchKey !== sessionId) continue
       nativeCards.delete(token)
