@@ -1733,6 +1733,12 @@ window.__ModuleLoader__.load({
       }
 
       function pushToast(record, config, options = {}) {
+        // Одна сессия (и один субагент) — одна плашка: старая исчезает, новая встаёт на её место.
+        if (record.sessionId !== '') {
+          for (const item of toasts.get()) {
+            if (item.sessionId === record.sessionId && item.leaving !== true) dismiss(item.uid)
+          }
+        }
         const existing = toasts.get().find(item =>
           item.kind === record.kind
           && item.sessionId === record.sessionId
