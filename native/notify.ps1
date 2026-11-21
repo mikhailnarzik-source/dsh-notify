@@ -515,13 +515,10 @@ $gradientBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $
 $root.Background = $gradientBrush
 $root.BorderBrush = $borderBrush
 $root.BorderThickness = New-Object System.Windows.Thickness 1
-$shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
-$shadow.BlurRadius = 22
-$shadow.ShadowDepth = 0
-$themeName = [string]$json.theme
-if ($themeName -eq "light") { $shadow.Opacity = 0.20; $shadow.BlurRadius = 18 } else { $shadow.Opacity = 0.42; $shadow.BlurRadius = 24 }
-$shadow.Color = [System.Windows.Media.Color]::FromArgb(255, 0, 0, 0)
-$root.Effect = $shadow
+$root.Effect = $null
+$script:scaleTransform = New-Object System.Windows.Media.ScaleTransform 1, 1
+$root.RenderTransform = $script:scaleTransform
+$root.RenderTransformOrigin = New-Object System.Windows.Point 1, 0.5
 $script:window.Content = $root
 
 $body = New-Object System.Windows.Controls.StackPanel
@@ -628,7 +625,7 @@ $closeGlyph.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
 $close.Child = $closeGlyph
 $close.Add_MouseEnter({ $closeHoverBg = Blend $foregroundText $backgroundText 0.16; $close.Background = Get-Brush $closeHoverBg $closeHoverBg; $closeGlyph.Foreground = $fgBrush })
 $close.Add_MouseLeave({ $close.Background = Get-Brush $closeBg $closeBg; $closeGlyph.Foreground = $mutedBrush })
-$close.Add_MouseLeftButtonUp({ $script:result = 0; $script:window.Close() })
+$close.Add_MouseLeftButtonUp({ Close-Card 0 })
 
 # Текст уведомления одной строкой.
 $bodyText = New-Object System.Windows.Controls.TextBlock
@@ -711,8 +708,7 @@ $mute.Add_MouseLeftButtonUp({
   if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
     try { [System.IO.File]::WriteAllText($actionFile, "mute", [System.Text.Encoding]::UTF8) } catch { }
   }
-  $script:result = 11
-  $script:window.Close()
+  Close-Card 11
 })
 
 $meta = New-Object System.Windows.Controls.StackPanel
@@ -780,27 +776,67 @@ function Get-CardTarget {
   }
 }
 
-function Animate-Card([double]$targetLeft, [double]$targetTop, [int]$durationMs) {
+# Плавная анимация средствами WPF: композитор интерполирует сам, без дёрганья таймера.
+function Animate-Card([double]$targetLeft, [double]$targetTop, [int]$durationMs, [switch]$NoFade) {
   try {
-    if ($null -ne $script:cardTimer) { $script:cardTimer.Stop() }
-    $script:cardFromLeft = $script:window.Left
-    $script:cardFromTop = $script:window.Top
-    $script:cardToLeft = $targetLeft
-    $script:cardToTop = $targetTop
-    $script:cardSteps = [Math]::Max(1, [int]($durationMs / 16))
-    $script:cardStep = 0
-    $script:cardTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $script:cardTimer.Interval = [TimeSpan]::FromMilliseconds(16)
-    $script:cardTimer.Add_Tick({
-      $script:cardStep += 1
-      $t = [Math]::Min(1.0, $script:cardStep / $script:cardSteps)
-      $ease = 1 - [Math]::Pow(1 - $t, 3)
-      $script:window.Left = $script:cardFromLeft + ($script:cardToLeft - $script:cardFromLeft) * $ease
-      $script:window.Top = $script:cardFromTop + ($script:cardToTop - $script:cardFromTop) * $ease
-      if ($t -ge 1.0) { $script:cardTimer.Stop() }
-    })
-    $script:cardTimer.Start()
+    $ease = New-Object System.Windows.Media.Animation.CubicEase
+    $ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
+    $span = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds($durationMs))
+    $fromLeft = $script:window.Left
+    $fromTop = $script:window.Top
+    $leftAnim = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $leftAnim.From = $fromLeft
+    $leftAnim.To = $targetLeft
+    $leftAnim.Duration = $span
+    $leftAnim.EasingFunction = $ease
+    $script:window.BeginAnimation([System.Windows.Window]::LeftProperty, $leftAnim)
+    $topAnim = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $topAnim.From = $fromTop
+    $topAnim.To = $targetTop
+    $topAnim.Duration = $span
+    $topAnim.EasingFunction = $ease
+    $script:window.BeginAnimation([System.Windows.Window]::TopProperty, $topAnim)
+    if (-not $NoFade) {
+      $scaleX = New-Object System.Windows.Media.Animation.DoubleAnimation
+      $scaleX.From = 0.97
+      $scaleX.To = 1
+      $scaleX.Duration = $span
+      $scaleX.EasingFunction = $ease
+      $script:scaleTransform.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleXProperty, $scaleX)
+      $scaleY = New-Object System.Windows.Media.Animation.DoubleAnimation
+      $scaleY.From = 0.97
+      $scaleY.To = 1
+      $scaleY.Duration = $span
+      $scaleY.EasingFunction = $ease
+      $script:scaleTransform.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty, $scaleY)
+      $fade = New-Object System.Windows.Media.Animation.DoubleAnimation
+      $fade.From = 0
+      $fade.To = 1
+      $fade.Duration = $span
+      $fade.EasingFunction = $ease
+      $script:window.BeginAnimation([System.Windows.Window]::OpacityProperty, $fade)
+    }
   } catch {
+  }
+}
+
+# Закрытие: сначала короткое растворение, потом окно закрывается.
+function Close-Card([int]$result = 0) {
+  $script:result = $result
+  try {
+    $ease = New-Object System.Windows.Media.Animation.QuadraticEase
+    $ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseIn
+    $fade = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $fade.To = 0
+    $fade.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(140))
+    $fade.EasingFunction = $ease
+    $script:window.BeginAnimation([System.Windows.Window]::OpacityProperty, $fade)
+    $script:closeTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:closeTimer.Interval = [TimeSpan]::FromMilliseconds(150)
+    $script:closeTimer.Add_Tick({ $script:closeTimer.Stop(); $script:window.Close() })
+    $script:closeTimer.Start()
+  } catch {
+    $script:window.Close()
   }
 }
 
@@ -812,23 +848,13 @@ function Set-CardPosition {
 
 
 $script:window.Add_Loaded({
-  # Новая карточка вылетает из-за правого края экрана и проявляется.
+  # Появление из-за правого края: короткий выезд + растворение, 200 мс ease-out.
   $target = Get-CardTarget
-  $script:window.Top = $target.top
-  $entryWidth = $script:window.ActualWidth
-  if ($null -eq $entryWidth -or $entryWidth -le 0) { $entryWidth = $width }
-  $script:window.Left = $target.left + $entryWidth + 60
   $script:window.Opacity = 0
-  $script:fadeStep = 0
-  $script:fadeTimer = New-Object System.Windows.Threading.DispatcherTimer
-  $script:fadeTimer.Interval = [TimeSpan]::FromMilliseconds(16)
-  $script:fadeTimer.Add_Tick({
-    $script:fadeStep += 1
-    $script:window.Opacity = [Math]::Min(1.0, $script:fadeStep / 12.0)
-    if ($script:fadeStep -ge 12) { $script:fadeTimer.Stop() }
-  })
-  $script:fadeTimer.Start()
-  Animate-Card $target.left $target.top 300
+  $script:window.Top = $target.top
+  $script:window.Left = $target.left + 30
+  $script:entryTarget = $target
+  $script:window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Render, [Action]{ Animate-Card $script:entryTarget.left $script:entryTarget.top 230 }) | Out-Null
   $script:startedAt = [DateTime]::Now
   if ($null -ne $json.startedAt) { try { $script:startedAt = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$json.startedAt).LocalDateTime } catch { } }
   $script:elapsedTimer = New-Object System.Windows.Threading.DispatcherTimer
@@ -862,7 +888,7 @@ $script:window.Add_Loaded({
   try {
     $script:window.Dispatcher.BeginInvoke(
       [System.Windows.Threading.DispatcherPriority]::ContextIdle,
-      [Action]{ $late = Get-CardTarget; Animate-Card $late.left $late.top 240 }
+      [Action]{ $late = Get-CardTarget; Animate-Card $late.left $late.top 220 -NoFade }
     ) | Out-Null
   } catch {
   }
