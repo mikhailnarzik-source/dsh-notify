@@ -890,6 +890,17 @@ window.__ModuleLoader__.load({
           props.onClose(item.uid)
         },
       }, h('span', { 'aria-hidden': true }, '✕'))
+      const mute = props.onMute
+        ? h('button', {
+            type: 'button',
+            className: 'dsh-ntf-action dsh-ntf-mute',
+            title: t('muteAction'),
+            onClick: event => {
+              event.stopPropagation()
+              props.onMute(15)
+            },
+          }, '🔕')
+        : null
       const progress = item.duration > 0 && !item.leaving
         ? h('span', { className: 'dsh-ntf-progress', style: { animationDuration: `${item.duration}ms` } })
         : null

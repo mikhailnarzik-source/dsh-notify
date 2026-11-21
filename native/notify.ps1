@@ -486,8 +486,8 @@ try {
 
 $script:window = New-Object System.Windows.Window
 $script:window.WindowStyle = [System.Windows.WindowStyle]::None
-$script:window.AllowsTransparency = $true
-$script:window.Background = [System.Windows.Media.Brushes]::Transparent
+$script:window.AllowsTransparency = $false
+$script:window.Background = $bgBrush
 $script:window.Topmost = $true
 $script:window.ShowInTaskbar = $false
 $script:window.ShowActivated = $false
@@ -506,7 +506,7 @@ $shadow.BlurRadius = 22
 $shadow.ShadowDepth = 5
 $shadow.Opacity = 0.38
 $shadow.Color = [System.Windows.Media.Color]::FromArgb(255, 0, 0, 0)
-$root.Effect = $shadow
+# тень в непрозрачном окне не нужна: $root.Effect = $shadow
 $script:window.Content = $root
 
 $grid = New-Object System.Windows.Controls.Grid
