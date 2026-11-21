@@ -85,6 +85,7 @@ window.__ModuleLoader__.load({
     const DEFAULTS = {
       notifications: true,
       sound: true,
+      gameMode: false,
       theme: 'system',
       variant: 'card',
       position: 'bottom-right',
@@ -115,6 +116,7 @@ window.__ModuleLoader__.load({
         untitledSession: 'Без названия',
         open: 'Перейти',
         dismiss: 'Закрыть',
+        muteAction: 'Без звука 15 мин',
         unitSec: 'с',
         unitMin: 'мин',
         unitHour: 'ч',
@@ -231,6 +233,7 @@ window.__ModuleLoader__.load({
         untitledSession: 'Untitled',
         open: 'Open',
         dismiss: 'Dismiss',
+        muteAction: 'Mute 15 min',
         unitSec: 's',
         unitMin: 'm',
         unitHour: 'h',
@@ -696,6 +699,7 @@ window.__ModuleLoader__.load({
       }
 
       function play(kind, volume) {
+        if (Date.now() < (settings.get().mutedUntil ?? 0)) return
         const audio = ensure()
         if (audio === null) return
         const specs = SOUNDS[kind] ?? SOUNDS.done
@@ -912,6 +916,7 @@ window.__ModuleLoader__.load({
           ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onUpdate }, t('updateNow'))
           : null,
         close,
+        mute,
         progress)
       }
 
@@ -938,6 +943,7 @@ window.__ModuleLoader__.load({
             ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onOpen }, t('open'))
             : null,
         close,
+        mute,
         progress)
       }
 
@@ -966,6 +972,7 @@ window.__ModuleLoader__.load({
           : openable
             ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onOpen }, t('open'))
             : null,
+        mute,
         h('span', { className: 'dsh-ntf-time' }, formatClock(item.at))),
       progress)
     }
@@ -997,6 +1004,7 @@ window.__ModuleLoader__.load({
         fontFamily,
         fontStyle,
         onClose: controller.dismiss,
+        onMute: controller.muteSound,
         onOpen: controller.openFromToast,
         onUpdate: controller.installUpdateFromToast,
       })))
@@ -1694,6 +1702,13 @@ window.__ModuleLoader__.load({
           if (refreshed !== undefined) schedule(refreshed, config)
           return
         }
+        // Стек не длиннее трёх: старейшие плашки убираем.
+        while (toasts.get().filter(item => item.leaving !== true).length >= 3) {
+          const oldest = toasts.get().filter(item => item.leaving !== true)[0]
+          if (oldest === undefined) break
+          dismiss(oldest.uid)
+          break
+        }
         const toast = {
           ...record,
           uid: record.uid,
@@ -1961,6 +1976,11 @@ window.__ModuleLoader__.load({
         persistHistory([])
       }
 
+      /** Временно выключить звук, не трогая сами уведомления. */
+      function muteSound(minutes = 15) {
+        update({ mutedUntil: Date.now() + minutes * 60 * 1000 })
+      }
+
       function requestPermission() {
         if (typeof Notification !== 'function') return
         try {
@@ -2065,6 +2085,7 @@ window.__ModuleLoader__.load({
         markWindowActive,
         syncPresentation,
         preview,
+        muteSound,
         previewNative,
         clearHistory,
         requestPermission,
