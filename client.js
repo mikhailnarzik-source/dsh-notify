@@ -699,7 +699,6 @@ window.__ModuleLoader__.load({
       }
 
       function play(kind, volume) {
-        if (Date.now() < (settings.get().mutedUntil ?? 0)) return
         const audio = ensure()
         if (audio === null) return
         const specs = SOUNDS[kind] ?? SOUNDS.done
@@ -1925,7 +1924,7 @@ window.__ModuleLoader__.load({
         // The person may be reading exactly this chat: a toast would cover the
         // answer they are watching, so only the sound reports it.
         const watchingThisChat = windowActive && record.sessionId !== '' && activeSession.get() === record.sessionId
-        if (config.sound === true) audio.play(kind, config.volume / 100)
+        if (config.sound === true && Date.now() >= (config.mutedUntil ?? 0)) audio.play(kind, config.volume / 100)
         const showToast = force === true
           || (config.notifications === true && config.gameMode !== true)
         // While the app window is not the one in front, a Windows companion card
