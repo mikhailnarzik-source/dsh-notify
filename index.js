@@ -700,7 +700,7 @@ export function apply(ctx) {
     const windowTitle = typeof request.windowTitle === 'string' ? request.windowTitle.trim().slice(0, 160) : ''
     const when = request.record !== null && typeof request.record === "object" && Number.isFinite(request.record.at) ? new Date(request.record.at) : new Date()
     const clock = String(when.getHours()).padStart(2, "0") + ":" + String(when.getMinutes()).padStart(2, "0")
-    const stamp = String(when.getHours()).padStart(2, "0") + ":" + String(when.getMinutes()).padStart(2, "0") + " · " + String(when.getDate()).padStart(2, "0") + "." + String(when.getMonth() + 1).padStart(2, "0")
+    const stamp = String(when.getHours()).padStart(2, "0") + ":" + String(when.getMinutes()).padStart(2, "0") + " · " + String(when.getDate()).padStart(2, "0") + "." + String(when.getMonth() + 1).padStart(2, "0") + "." + when.getFullYear()
     // Новая карточка той же сессии заменяет старую; остальные опускаются.
     if (sessionIdForCard !== '') killNativeCards(sessionIdForCard)
     const payload = {

@@ -650,6 +650,7 @@ $null = $body.Children.Add($divider)
 # Нижняя строка: действия слева, время и таймер справа в две строки.
 $footer = New-Object System.Windows.Controls.Grid
 $footer.Margin = New-Object System.Windows.Thickness 0, 6, 0, 0
+$footer.Width = $width - 36
 $actionsColumn = New-Object System.Windows.Controls.ColumnDefinition
 $actionsColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
 $metaColumn = New-Object System.Windows.Controls.ColumnDefinition
@@ -713,20 +714,21 @@ $mute.Add_MouseLeftButtonUp({
 
 $meta = New-Object System.Windows.Controls.StackPanel
 $meta.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$meta.Margin = New-Object System.Windows.Thickness 0, 0, 6, 0
 [System.Windows.Controls.Grid]::SetColumn($meta, 1)
 $null = $footer.Children.Add($meta)
 
 $stampText = New-Object System.Windows.Controls.TextBlock
 $stampText.Text = [string]$json.stamp
-$stampText.FontSize = 11
-$stampReadable = Blend $foregroundText $backgroundText 0.66
+$stampText.FontSize = 11.5
+$stampReadable = Blend $foregroundText $backgroundText 0.78
 $stampText.Foreground = Get-Brush $stampReadable $stampReadable
 $stampText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
 $null = $meta.Children.Add($stampText)
 
 $elapsedText = New-Object System.Windows.Controls.TextBlock
 $elapsedText.Text = "висит 0:00"
-$elapsedText.FontSize = 11
+$elapsedText.FontSize = 11.5
 $elapsedText.Foreground = Get-Brush $stampReadable $stampReadable
 $elapsedText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
 $null = $meta.Children.Add($elapsedText)
