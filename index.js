@@ -693,8 +693,13 @@ export function apply(ctx) {
     const token = typeof request.token === 'string' && request.token !== '' ? request.token : `n${Date.now()}`
     /** The page's own title, for recognizing its browser window when the app is closed. */
     const windowTitle = typeof request.windowTitle === 'string' ? request.windowTitle.trim().slice(0, 160) : ''
+    const when = request.record !== null && typeof request.record === "object" && Number.isFinite(request.record.at) ? new Date(request.record.at) : new Date()
+    const clock = String(when.getHours()).padStart(2, "0") + ":" + String(when.getMinutes()).padStart(2, "0")
     const payload = {
       title,
+      clock,
+      subtitle: clip(String(request.subtitle ?? request.meta ?? ""), 160),
+      muteLabel: clip(String(request.muteLabel ?? ""), 60),
       body: clip(String(request.body ?? ''), 200),
       meta: clip(String(request.meta ?? ''), 120),
       windowTitle,
@@ -786,6 +791,8 @@ export function apply(ctx) {
         // The person pressed "open": focus the app window (done by the companion)
         // and let the page open the chat.
         publish({ kind: 'action', action: 'open', sessionId, token })
+      } else if (action === 'mute') {
+        publish({ kind: 'action', action: 'mute', sessionId, token })
       } else if (code === 2 && entry.record !== null) {
         // The companion could not build the card; fall back to the in-app toast.
         publish({ ...entry.record, nativeFallback: true })

@@ -499,7 +499,7 @@ $script:window.FontFamily = New-Object System.Windows.Media.FontFamily $fontFami
 $root = New-Object System.Windows.Controls.Border
 $root.CornerRadius = New-Object System.Windows.CornerRadius 16
 # Фон — градиент от цвета типа уведомления к тёмной основе DSH.
-$gradientStart = Get-Brush (Blend $accentText $backgroundText 0.26) $backgroundText
+$gradientStart = Get-Brush (Blend $accentText $backgroundText 0.34) $backgroundText
 $gradientEnd = Get-Brush (Blend $accentText $backgroundText 0.04) $backgroundText
 $gradientBrush = New-Object System.Windows.Media.LinearGradientBrush
 $gradientBrush.StartPoint = New-Object System.Windows.Point 0, 0
@@ -518,17 +518,49 @@ $root.Effect = $shadow
 $script:window.Content = $root
 
 $body = New-Object System.Windows.Controls.StackPanel
-$body.Margin = New-Object System.Windows.Thickness 16, 12, 14, 12
+$body.Margin = New-Object System.Windows.Thickness 16, 13, 14, 12
 $root.Child = $body
 
+# Заголовок: иконка типа, два текста и кнопка закрытия — как во внутренних плашках.
 $header = New-Object System.Windows.Controls.Grid
-$titleColumn = New-Object System.Windows.Controls.ColumnDefinition
-$titleColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
+$iconColumn = New-Object System.Windows.Controls.ColumnDefinition
+$iconColumn.Width = New-Object System.Windows.GridLength 0, ([System.Windows.GridUnitType]::Auto)
+$textColumn = New-Object System.Windows.Controls.ColumnDefinition
+$textColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
 $closeColumn = New-Object System.Windows.Controls.ColumnDefinition
 $closeColumn.Width = New-Object System.Windows.GridLength 0, ([System.Windows.GridUnitType]::Auto)
-$header.ColumnDefinitions.Add($titleColumn)
+$header.ColumnDefinitions.Add($iconColumn)
+$header.ColumnDefinitions.Add($textColumn)
 $header.ColumnDefinitions.Add($closeColumn)
-$body.Children.Add($header)
+$null = $body.Children.Add($header)
+
+$iconCircle = New-Object System.Windows.Controls.Border
+$iconCircle.Width = 32
+$iconCircle.Height = 32
+$iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 16
+$iconBg = Blend $accentText $backgroundText 0.16
+$iconCircle.Background = Get-Brush $iconBg $iconBg
+$iconCircle.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+$iconCircle.Margin = New-Object System.Windows.Thickness 0, 1, 11, 0
+[System.Windows.Controls.Grid]::SetColumn($iconCircle, 0)
+$null = $header.Children.Add($iconCircle)
+
+$iconGlyph = New-Object System.Windows.Controls.TextBlock
+$glyphText = [string][char]0x2713
+if ([string]$json.kind -eq "attention") { $glyphText = "!" }
+if ([string]$json.kind -eq "error") { $glyphText = [string][char]0x2715 }
+$iconGlyph.Text = $glyphText
+$iconGlyph.FontSize = 15
+$iconGlyph.FontWeight = [System.Windows.FontWeights]::Bold
+$iconGlyph.Foreground = $accentBrush
+$iconGlyph.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+$iconGlyph.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$iconCircle.Child = $iconGlyph
+
+$heading = New-Object System.Windows.Controls.StackPanel
+[System.Windows.Controls.Grid]::SetColumn($heading, 1)
+$heading.Margin = New-Object System.Windows.Thickness 0, 0, 8, 0
+$null = $header.Children.Add($heading)
 
 $title = New-Object System.Windows.Controls.TextBlock
 $title.Text = [string]$json.title
@@ -537,25 +569,35 @@ $title.FontWeight = [System.Windows.FontWeights]::SemiBold
 $title.Foreground = $fgBrush
 $title.TextWrapping = [System.Windows.TextWrapping]::Wrap
 $title.FontStyle = $styleValue
-$title.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-$title.Margin = New-Object System.Windows.Thickness 0, 0, 8, 0
-[System.Windows.Controls.Grid]::SetColumn($title, 0)
-$header.Children.Add($title)
+$null = $heading.Children.Add($title)
 
-# The close affordance: a full round target in the top-right corner, large
-# enough to hit without aiming.
+$subtitleText = [string]$json.subtitle
+if ([string]::IsNullOrWhiteSpace($subtitleText)) { $subtitleText = [string]$json.meta }
+if (-not [string]::IsNullOrWhiteSpace($subtitleText)) {
+  $subtitle = New-Object System.Windows.Controls.TextBlock
+  $subtitle.Text = $subtitleText
+  $subtitle.Margin = New-Object System.Windows.Thickness 0, 2, 0, 0
+  $subtitle.FontSize = $metaSize
+  $subtitle.Foreground = $mutedBrush
+  $subtitle.TextWrapping = [System.Windows.TextWrapping]::Wrap
+  $subtitle.FontStyle = $styleValue
+  $null = $heading.Children.Add($subtitle)
+}
+
 $close = New-Object System.Windows.Controls.Border
 $close.Width = 30
 $close.Height = 30
 $close.CornerRadius = New-Object System.Windows.CornerRadius 15
-$close.Background = Get-Brush (Blend $foregroundText $backgroundText 0.07) '#26FFFFFF'
+$closeBg = Blend $foregroundText $backgroundText 0.07
+$close.Background = Get-Brush $closeBg $closeBg
 $close.Cursor = [System.Windows.Input.Cursors]::Hand
 $close.ToolTip = $dismissLabel
-[System.Windows.Controls.Grid]::SetColumn($close, 1)
-$header.Children.Add($close)
+$close.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+[System.Windows.Controls.Grid]::SetColumn($close, 2)
+$null = $header.Children.Add($close)
 
 $closeGlyph = New-Object System.Windows.Controls.TextBlock
-$closeGlyph.Text = [char]0x2715
+$closeGlyph.Text = [string][char]0x2715
 $closeGlyph.FontSize = 15
 $closeGlyph.FontWeight = [System.Windows.FontWeights]::Normal
 $closeGlyph.Foreground = $mutedBrush
@@ -565,13 +607,12 @@ $closeGlyph.Margin = New-Object System.Windows.Thickness 0, -1, 0, 0
 $close.Child = $closeGlyph
 
 $close.Add_MouseEnter({
-  $script:closeHover = $true
-  $close.Background = Get-Brush ([string]$json.closeHoverBackground) '#4DFFFFFF'
+  $closeHoverBg = Blend $foregroundText $backgroundText 0.16
+  $close.Background = Get-Brush $closeHoverBg $closeHoverBg
   $closeGlyph.Foreground = $fgBrush
 })
 $close.Add_MouseLeave({
-  $script:closeHover = $false
-  $close.Background = Get-Brush (Blend $foregroundText $backgroundText 0.07) '#26FFFFFF'
+  $close.Background = Get-Brush $closeBg $closeBg
   $closeGlyph.Foreground = $mutedBrush
 })
 $close.Add_MouseLeftButtonUp({
@@ -581,40 +622,38 @@ $close.Add_MouseLeftButtonUp({
 
 $bodyText = New-Object System.Windows.Controls.TextBlock
 $bodyText.Text = [string]$json.body
-$bodyText.Margin = New-Object System.Windows.Thickness 0, 6, 0, 0
+$bodyText.Margin = New-Object System.Windows.Thickness 0, 9, 0, 0
 $bodyText.FontSize = $bodySize
 $bodyText.Foreground = $fgBrush
 $bodyText.TextWrapping = [System.Windows.TextWrapping]::Wrap
 $bodyText.FontWeight = $weightValue
 $bodyText.FontStyle = $styleValue
-$body.Children.Add($bodyText)
+$null = $body.Children.Add($bodyText)
 
-if (-not [string]::IsNullOrWhiteSpace([string]$json.meta)) {
-  $metaText = New-Object System.Windows.Controls.TextBlock
-  $metaText.Text = [string]$json.meta
-  $metaText.Margin = New-Object System.Windows.Thickness 0, 5, 0, 0
-  $metaText.FontSize = $metaSize
-  $metaText.Foreground = $mutedBrush
-  $metaText.TextWrapping = [System.Windows.TextWrapping]::Wrap
-  $metaText.FontStyle = $styleValue
-  $body.Children.Add($metaText)
-}
-
-$actions = New-Object System.Windows.Controls.StackPanel
-$actions.Orientation = [System.Windows.Controls.Orientation]::Horizontal
-$actions.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
-$actions.Margin = New-Object System.Windows.Thickness 0, 11, 0, 0
-$body.Children.Add($actions)
+# Нижняя строка: кнопки и время, как на внутренних плашках.
+$footer = New-Object System.Windows.Controls.Grid
+$footer.Margin = New-Object System.Windows.Thickness 0, 12, 0, 0
+$footerLeft = New-Object System.Windows.Controls.StackPanel
+$footerLeft.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+$footerLeftColumn = New-Object System.Windows.Controls.ColumnDefinition
+$footerLeftColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
+$footerTimeColumn = New-Object System.Windows.Controls.ColumnDefinition
+$footerTimeColumn.Width = New-Object System.Windows.GridLength 0, ([System.Windows.GridUnitType]::Auto)
+$footer.ColumnDefinitions.Add($footerLeftColumn)
+$footer.ColumnDefinitions.Add($footerTimeColumn)
+$null = $footer.Children.Add($footerLeft)
+$null = $body.Children.Add($footer)
 
 $open = New-Object System.Windows.Controls.Border
 $open.CornerRadius = New-Object System.Windows.CornerRadius 9
-$open.Background = Get-Brush (Blend $accentText $backgroundText 0.12) '#1A38C98A'
-$open.BorderBrush = Get-Brush (Blend $accentText $backgroundText 0.32) '#5238C98A'
+$openBg = Blend $accentText $backgroundText 0.12
+$openBorder = Blend $accentText $backgroundText 0.32
+$open.Background = Get-Brush $openBg $openBg
+$open.BorderBrush = Get-Brush $openBorder $openBorder
 $open.BorderThickness = New-Object System.Windows.Thickness 1
 $open.Padding = New-Object System.Windows.Thickness 14, 6, 14, 6
 $open.Cursor = [System.Windows.Input.Cursors]::Hand
-$open.Child = $null
-$actions.Children.Add($open)
+$null = $footerLeft.Children.Add($open)
 
 $openLabelText = New-Object System.Windows.Controls.TextBlock
 $openLabelText.Text = $openLabel
@@ -622,9 +661,46 @@ $openLabelText.FontSize = 12.5
 $openLabelText.FontWeight = [System.Windows.FontWeights]::SemiBold
 $openLabelText.Foreground = $accentBrush
 $open.Child = $openLabelText
+$open.Add_MouseEnter({ $hoverBg = Blend $accentText $backgroundText 0.2; $open.Background = Get-Brush $hoverBg $hoverBg })
+$open.Add_MouseLeave({ $open.Background = Get-Brush $openBg $openBg })
 
-$open.Add_MouseEnter({ $open.Background = Get-Brush (Blend $accentText $backgroundText 0.2) '#3338C98A' })
-$open.Add_MouseLeave({ $open.Background = Get-Brush (Blend $accentText $backgroundText 0.12) '#1A38C98A' })
+# Кнопка приглушения звука — та же, что во внутренних плашках.
+$mute = New-Object System.Windows.Controls.Border
+$mute.CornerRadius = New-Object System.Windows.CornerRadius 9
+$muteBg = Blend $foregroundText $backgroundText 0.08
+$muteBorder = Blend $foregroundText $backgroundText 0.16
+$mute.Background = Get-Brush $muteBg $muteBg
+$mute.BorderBrush = Get-Brush $muteBorder $muteBorder
+$mute.BorderThickness = New-Object System.Windows.Thickness 1
+$mute.Padding = New-Object System.Windows.Thickness 10, 5, 10, 5
+$mute.Margin = New-Object System.Windows.Thickness 8, 0, 0, 0
+$mute.Cursor = [System.Windows.Input.Cursors]::Hand
+$mute.ToolTip = [string]$json.muteLabel
+$null = $footerLeft.Children.Add($mute)
+
+$muteGlyph = New-Object System.Windows.Controls.TextBlock
+$muteGlyph.Text = [string][char]::ConvertFromUtf32(0x1F515)
+$muteGlyph.FontSize = 12.5
+$muteGlyph.Foreground = $mutedBrush
+$mute.Child = $muteGlyph
+$mute.Add_MouseEnter({ $muteGlyph.Foreground = $fgBrush })
+$mute.Add_MouseLeave({ $muteGlyph.Foreground = $mutedBrush })
+$mute.Add_MouseLeftButtonUp({
+  if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
+    try { [System.IO.File]::WriteAllText($actionFile, "mute", [System.Text.Encoding]::UTF8) } catch { }
+  }
+  $script:result = 11
+  $script:window.Close()
+})
+
+$clockText = New-Object System.Windows.Controls.TextBlock
+$clockText.Text = [string]$json.clock
+$clockText.FontSize = $metaSize
+$clockText.Foreground = $mutedBrush
+$clockText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+$clockText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+[System.Windows.Controls.Grid]::SetColumn($clockText, 1)
+$null = $footer.Children.Add($clockText)
 
 function Request-Open {
   if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
@@ -678,6 +754,18 @@ function Set-CardPosition {
 
 $script:window.Add_Loaded({
   Set-CardPosition
+  # Появление как у внутренних плашек: карточка мягко подъезжает снизу.
+  $script:finalTop = $script:window.Top
+  $script:animStep = 0
+  $script:animTimer = New-Object System.Windows.Threading.DispatcherTimer
+  $script:animTimer.Interval = [TimeSpan]::FromMilliseconds(15)
+  $script:animTimer.Add_Tick({
+    $script:animStep += 1
+    $progress = [Math]::Min(1.0, $script:animStep / 12.0)
+    $script:window.Top = $script:finalTop + (12 * (1 - $progress))
+    if ($progress -ge 1.0) { $script:animTimer.Stop() }
+  })
+  $script:animTimer.Start()
   # Ещё раз после отрисовки: высота карточки становится известна только тогда.
   try {
     $script:window.Dispatcher.BeginInvoke(

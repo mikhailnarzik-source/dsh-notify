@@ -1545,6 +1545,8 @@ window.__ModuleLoader__.load({
           title: info.title,
           body: info.body,
           meta: info.meta ?? '',
+          subtitle: info.meta ?? '',
+          muteLabel: t('muteAction'),
           windowTitle: pageTitle,
           record: {
             kind: record.kind,
@@ -1884,6 +1886,10 @@ window.__ModuleLoader__.load({
         if (disposed || item === null || typeof item !== 'object') return
         // The companion reported that "open" was pressed on a native card.
         if (item.kind === 'action') {
+          if (item.action === 'mute') {
+            muteSound(15)
+            return
+          }
           if (item.action === 'open' && typeof item.sessionId === 'string' && item.sessionId !== '') {
             // The Windows companion already raised the target window; focusing
             // from here would let another connected client (a browser tab of
