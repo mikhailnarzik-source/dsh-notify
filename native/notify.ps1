@@ -686,6 +686,12 @@ $open.Add_MouseEnter({ $hoverBg = Blend $accentText $backgroundText 0.2; $open.B
 $open.Add_MouseLeave({ $open.Background = Get-Brush $openBg $openBg })
 
 # Кнопка звука: показывает состояние и оставшееся время приглушения.
+$muteMinutesLabel = [string]$json.muteMinutesLabel
+if ([string]::IsNullOrWhiteSpace($muteMinutesLabel)) { $muteMinutesLabel = "15 min" }
+$unmuteLabel = [string]$json.unmuteLabel
+if ([string]::IsNullOrWhiteSpace($unmuteLabel)) { $unmuteLabel = "Unmute" }
+$elapsedPrefix = [string]$json.elapsedPrefix
+if ([string]::IsNullOrWhiteSpace($elapsedPrefix)) { $elapsedPrefix = "on screen" }
 $script:mutedUntil = 0
 if ($null -ne $json.mutedUntil) { $script:mutedUntil = [long]$json.mutedUntil }
 
@@ -713,7 +719,7 @@ $muteGlyph.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
 $null = $muteContent.Children.Add($muteGlyph)
 
 $muteLabelText = New-Object System.Windows.Controls.TextBlock
-$muteLabelText.Text = "15 мин"
+$muteLabelText.Text = $muteMinutesLabel
 $muteLabelText.FontSize = 10.5
 $muteLabelText.Margin = New-Object System.Windows.Thickness 4, 0, 0, 0
 $muteLabelText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
@@ -734,11 +740,11 @@ function Update-MuteState {
       $muteActiveBorder = Blend $accentText $backgroundText 0.55
       $mute.Background = Get-Brush $muteActiveBg $muteActiveBg
       $mute.BorderBrush = Get-Brush $muteActiveBorder $muteActiveBorder
-      $mute.ToolTip = "Включить звук"
+      $mute.ToolTip = $unmuteLabel
     } else {
       $muteGlyph.Text = [string][char]::ConvertFromUtf32(0x1F515)
       $muteGlyph.Foreground = $mutedBrush
-      $muteLabelText.Text = "15 мин"
+      $muteLabelText.Text = $muteMinutesLabel
       $muteLabelText.Foreground = $mutedBrush
       $muteIdleBg = Blend $foregroundText $backgroundText 0.10
       $muteIdleBorder = Blend $foregroundText $backgroundText 0.22
@@ -774,7 +780,7 @@ $stampText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
 $null = $meta.Children.Add($stampText)
 
 $elapsedText = New-Object System.Windows.Controls.TextBlock
-$elapsedText.Text = "висит 0:00"
+$elapsedText.Text = ($elapsedPrefix + " 0:00")
 $elapsedText.FontSize = 11.5
 $elapsedText.Foreground = Get-Brush $stampReadable $stampReadable
 $elapsedText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
@@ -936,7 +942,7 @@ $script:window.Add_Loaded({
     try {
       $seconds = [int]([DateTime]::Now - $script:startedAt).TotalSeconds
       if ($seconds -lt 0) { $seconds = 0 }
-      $elapsedText.Text = ("{0}:{1:00}" -f [int]($seconds / 60), ($seconds % 60))
+      $elapsedText.Text = ($elapsedPrefix + " " + ("{0}:{1:00}" -f [int]($seconds / 60), ($seconds % 60)))
       Update-MuteState
     } catch { }
   })
