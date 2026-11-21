@@ -522,8 +522,8 @@ $root.RenderTransformOrigin = New-Object System.Windows.Point 1, 0.5
 $script:window.Content = $root
 
 $body = New-Object System.Windows.Controls.StackPanel
-$body.Margin = New-Object System.Windows.Thickness 12, 9, 12, 9
-$body.Width = $width - 24
+$body.Margin = New-Object System.Windows.Thickness 12, 9, 16, 9
+$body.Width = $width - 28
 $root.Child = $body
 
 # Шапка: иконка, заголовок с подзаголовком, крестик.
@@ -635,7 +635,7 @@ $bodyText.FontSize = 12.5
 $bodyText.Foreground = $fgBrush
 $bodyText.TextWrapping = [System.Windows.TextWrapping]::NoWrap
 $bodyText.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
-$bodyText.Width = $width - 24
+$bodyText.Width = $width - 28
 $bodyText.FontStyle = $styleValue
 $null = $body.Children.Add($bodyText)
 
@@ -718,15 +718,16 @@ $null = $footer.Children.Add($meta)
 
 $stampText = New-Object System.Windows.Controls.TextBlock
 $stampText.Text = [string]$json.stamp
-$stampText.FontSize = 10.5
-$stampText.Foreground = $mutedBrush
+$stampText.FontSize = 11
+$stampReadable = Blend $foregroundText $backgroundText 0.66
+$stampText.Foreground = Get-Brush $stampReadable $stampReadable
 $stampText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
 $null = $meta.Children.Add($stampText)
 
 $elapsedText = New-Object System.Windows.Controls.TextBlock
 $elapsedText.Text = "висит 0:00"
-$elapsedText.FontSize = 10.5
-$elapsedText.Foreground = $mutedBrush
+$elapsedText.FontSize = 11
+$elapsedText.Foreground = Get-Brush $stampReadable $stampReadable
 $elapsedText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
 $null = $meta.Children.Add($elapsedText)
 
