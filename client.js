@@ -1523,7 +1523,7 @@ window.__ModuleLoader__.load({
             maxCards: (() => {
               try {
                 const height = typeof window !== 'undefined' && window.screen ? Number(window.screen.availHeight) || 1080 : 1080
-                return Math.max(1, Math.min(8, Math.floor((height - 120) / 170)))
+                return Math.max(1, Math.min(8, Math.floor((height - 40) / 148)))
               } catch { return 6 }
             })(),
             labels: { open: t('open'), dismiss: t('dismiss') },
