@@ -20,10 +20,10 @@ window.__ModuleLoader__.load({
     /** Locale namespace and the package identity used by the module loader. */
     const NS = 'dsh-notify'
     /** Host route registered by this package's Node half. */
-    const FEED_PATH = '/api/dsh-notify.feed'
+    const FEED_PATH = '/api/dsh-notify/feed'
     /** Host route for native-card presentation and control. */
-    const CONTROL_PATH = '/api/dsh-notify.control'
-        const SETTINGS_PATH = '/api/dsh-notify.settings'
+    const CONTROL_PATH = '/api/dsh-notify/control'
+        const SETTINGS_PATH = '/api/dsh-notify/settings'
     const STORAGE_KEY = 'dsh-notify:settings:v1'
     const HISTORY_KEY = 'dsh-notify:history:v1'
     const HISTORY_LIMIT = 10

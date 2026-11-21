@@ -25,10 +25,10 @@ export const name = 'notify'
 export const inject = ['connection']
 
 /** Authenticated Fetch route the Client half long-polls. */
-export const FEED_PATH = '/api/dsh-notify.feed'
+export const FEED_PATH = '/api/dsh-notify/feed'
 
 /** Authenticated Fetch route for presentation sync and native-card control. */
-export const SETTINGS_PATH = '/api/dsh-notify.settings'
+export const SETTINGS_PATH = '/api/dsh-notify/settings'
 
 /** Файл с настройками в профиле: живёт на диске, а не в браузере. */
 
@@ -51,7 +51,7 @@ function settingsFile() {
   return join(base, 'dsh-notify', 'settings.json')
 }
 
-export const CONTROL_PATH = '/api/dsh-notify.control'
+export const CONTROL_PATH = '/api/dsh-notify/control'
 
 /** This installed package, the directory a self-update replaces files in. */
 export const PACKAGE_DIR = dirname(fileURLToPath(import.meta.url))
