@@ -1947,7 +1947,10 @@ window.__ModuleLoader__.load({
           reminded.add(key)
         }
         const force = options.force === true
-        const kind = item.kind === 'done' || item.kind === 'attention' || item.kind === 'error' ? item.kind : 'done'
+        const kind =
+    item.kind === 'done' || item.kind === 'attention' || item.kind === 'error' || item.kind === 'update-plugins'
+      ? item.kind
+      : 'done'
         uid += 1
         const record = {
           uid,
