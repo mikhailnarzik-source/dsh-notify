@@ -1276,7 +1276,10 @@ export function apply(ctx) {
     if (!stopped) void runUpdateCheck().catch(() => {})
     // plugin-check-startup: проверяем все наши плагины и предлагаем обновить.
     if (!stopped) {
-      void checkAllPlugins().then((state) => {
+      void checkAllPlugins().catch((error) => {
+            void appendLog('update-check', false, 'проверка обновлений не удалась: ' + String(error?.message ?? error))
+            return { outdated: [] }
+          }).then((state) => {
         const outdated = state.outdated ?? []
         if (outdated.length === 0) return
         publish({
