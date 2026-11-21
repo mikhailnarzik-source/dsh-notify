@@ -88,6 +88,130 @@ export const UPDATE_OWNER = 'mikhailnarzik-source'
 export const UPDATE_REPO = 'dsh-notify'
 export const UPDATE_BRANCH = 'main'
 
+
+/** Наши плагины: имя пакета → репозиторий на GitHub. */
+export const PLUGIN_REPOS = {
+  'dsh-notify': 'dsh-notify',
+  'dsh-sessions': 'dsh-sessions-plugin',
+  'dsh-polish': 'dsh-polish',
+  'dsh-cards': 'dsh-cards',
+  'dsh-compact': 'dsh-compact',
+  'dsh-review': 'dsh-review',
+  'dsh-team': 'dsh-team',
+  'dsh-vault': 'dsh-vault',
+  'dsh-expenses': 'dsh-expenses',
+  'dsh-browser-launcher': 'dsh-browser-launcher',
+  'dsh-github-safe': 'dsh-github-safe',
+}
+
+/** Каталог установленных плагинов текущего профиля. */
+function profileModulesDir() {
+  const home = process.env.DSH_HOME
+  const base = typeof home === 'string' && home !== '' ? home : join(homedir(), '.dsh')
+  const profile = process.env.DSH_PROFILE ?? 'desktop'
+  return join(base, 'profiles', profile, 'node_modules')
+}
+
+/** Токен GitHub из хранилища секретов DSH. */
+function githubToken() {
+  const home = process.env.DSH_HOME
+  const base = typeof home === 'string' && home !== '' ? home : join(homedir(), '.dsh')
+  try {
+    const text = readFileSync(join(base, '.credentials.yaml'), 'utf8')
+    let inRefs = false
+    for (const line of text.split('\n')) {
+      if (/^refs:\s*$/.test(line)) { inRefs = true; continue }
+      if (inRefs && /^\S/.test(line)) inRefs = false
+      if (!inRefs) continue
+      const match = /^\s+GITHUB_TOKEN:\s*(.*)$/.exec(line)
+      if (match !== null) {
+        let value = match[1].trim()
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1)
+        return value === '' ? undefined : value
+      }
+    }
+  } catch {
+    // токена нет — останутся только публичные запросы
+  }
+  return undefined
+}
+
+/** Сравнение версий вида 1.2.3. */
+/** Установленная версия плагина. */
+function installedPluginVersion(name) {
+  try {
+    const manifest = JSON.parse(readFileSync(join(profileModulesDir(), name, 'package.json'), 'utf8'))
+    return typeof manifest.version === 'string' ? manifest.version : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Версия в GitHub: читаем package.json из ветки main. */
+async function remotePluginVersion(repo) {
+  const token = githubToken()
+  const headers = { 'user-agent': 'dsh-notify', accept: 'application/vnd.github+json' }
+  if (token !== undefined) headers.authorization = 'Bearer ' + token
+  try {
+    const response = await fetch(`https://api.github.com/repos/${UPDATE_OWNER}/${repo}/contents/package.json?ref=${UPDATE_BRANCH}`, { headers })
+    if (!response.ok) return undefined
+    const data = await response.json()
+    const text = Buffer.from(String(data.content ?? ''), 'base64').toString('utf8')
+    const manifest = JSON.parse(text)
+    return typeof manifest.version === 'string' ? manifest.version : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Итог проверки: что установлено и что новее. */
+let pluginCheck = { at: 0, rows: [], checked: 0 }
+
+/** Проверить все наши плагины. */
+async function checkAllPlugins() {
+  const rows = []
+  for (const [name, repo] of Object.entries(PLUGIN_REPOS)) {
+    const installed = installedPluginVersion(name)
+    if (installed === undefined) continue
+    const latest = await remotePluginVersion(repo)
+    rows.push({ name, repo, installed, latest: latest ?? '', behind: latest !== undefined && compareVersions(latest, installed) > 0 })
+  }
+  pluginCheck = { at: Date.now(), rows, checked: rows.length }
+  return { ...pluginCheck, outdated: rows.filter((row) => row.behind === true) }
+}
+
+/** Путь к CLI DeepSeek Harness. */
+function cliPath() {
+  const candidates = [
+    join(process.env.LOCALAPPDATA ?? '', 'Programs/DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd'),
+    join(process.env.PROGRAMFILES ?? '', 'DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd'),
+  ]
+  return candidates.find((candidate) => candidate !== '' && existsSync(candidate))
+}
+
+/** Выполнить команду CLI. */
+function runCli(args, timeout = 240_000) {
+  return new Promise((resolveRun) => {
+    const cli = cliPath()
+    if (cli === undefined) { resolveRun({ ok: false, output: 'CLI не найден' }); return }
+    execFile(process.env.ComSpec ?? 'cmd.exe', ['/c', cli, ...args], { timeout, windowsHide: true }, (error, stdout, stderr) => {
+      resolveRun({ ok: error === null, output: `${String(stdout ?? '')}${String(stderr ?? '')}`.trim() })
+    })
+  })
+}
+
+/** Обновить указанные плагины через CLI. */
+async function updatePlugins(names) {
+  const results = []
+  for (const name of names) {
+    const repo = PLUGIN_REPOS[name]
+    if (repo === undefined) continue
+    await runCli(['plugin', '--profile', process.env.DSH_PROFILE ?? 'desktop', 'remove', name])
+    const added = await runCli(['plugin', '--profile', process.env.DSH_PROFILE ?? 'desktop', 'add', `github:${UPDATE_OWNER}/${repo}`])
+    results.push({ name, repo, ok: added.ok, output: added.output.slice(-400) })
+  }
+  return { at: Date.now(), results, outdated: [] }
+}
 /** First automatic check after the Host starts. */
 export const UPDATE_CHECK_DELAY_MS = 6_000
 
@@ -1120,6 +1244,14 @@ export function apply(ctx) {
       if (body.type === 'update/check') {
         return jsonResponse({ ok: true, state: await runUpdateCheck() })
       }
+      if (body.type === 'plugin-check') {
+        return jsonResponse({ ok: true, state: await checkAllPlugins() })
+      }
+      if (body.type === 'plugin-update-all') {
+        const state = await checkAllPlugins()
+        const names = state.outdated.map((row) => row.name)
+        return jsonResponse({ ok: true, state: await updatePlugins(names) })
+      }
       if (body.type === 'update/install') {
         return jsonResponse({ ok: true, state: await installUpdate() })
       }
@@ -1132,8 +1264,23 @@ export function apply(ctx) {
   ctx.effect(() => {
     let stopped = false
     const startup = setTimeout(() => {
-      if (!stopped) void runUpdateCheck()
-    }, UPDATE_CHECK_DELAY_MS)
+    if (!stopped) void runUpdateCheck()
+    // plugin-check-startup: проверяем все наши плагины и предлагаем обновить.
+    if (!stopped) {
+      void checkAllPlugins().then((state) => {
+        const outdated = state.outdated ?? []
+        if (outdated.length === 0) return
+        publish({
+          kind: 'update-plugins',
+          message: outdated.map((row) => row.name + ' ' + row.installed + ' → ' + row.latest).join('\n'),
+          latestVersion: outdated.map((row) => row.latest).join(','),
+          currentVersion: outdated.map((row) => row.installed).join(','),
+          durationMs: 0,
+          sticky: true,
+        })
+      })
+    }
+  }, UPDATE_CHECK_DELAY_MS)
     const periodic = setInterval(() => {
       if (!stopped) void runUpdateCheck()
     }, UPDATE_RECHECK_MS)

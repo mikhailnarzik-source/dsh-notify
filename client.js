@@ -196,6 +196,8 @@ window.__ModuleLoader__.load({
         previewErrorText: 'Не удалось выполнить запрос к модели.',
         updateTitle: 'Доступно обновление',
         updateBody: 'Вышла версия dsh-notify {version}.',
+        updateAll: 'Обновить всё',
+
         updateNow: 'Обновить',
         updateDoneTitle: 'Обновление установлено',
         updateGroup: 'Обновления',
@@ -314,6 +316,8 @@ window.__ModuleLoader__.load({
         previewErrorText: 'The model request failed.',
         updateTitle: 'Update available',
         updateBody: 'dsh-notify {version} has been released.',
+        updateAll: 'Update all',
+
         updateNow: 'Update',
         updateDoneTitle: 'Update installed',
         updateGroup: 'Updates',
@@ -719,7 +723,14 @@ window.__ModuleLoader__.load({
       if (record.kind === 'update') {
         const latest = typeof record.latestVersion === 'string' ? record.latestVersion : ''
         const installed = typeof record.currentVersion === 'string' ? record.currentVersion : ''
-        return {
+        if (record.kind === 'update-plugins') {
+      return {
+        title: 'Доступны обновления плагинов',
+        body: record.message === '' ? 'Нажми «Обновить всё», чтобы установить свежие версии.' : record.message,
+        meta: 'обновления',
+      }
+    }
+    return {
           title: t('updateTitle'),
           meta: installed !== '' && latest !== '' ? `${installed} → ${latest}` : latest,
           body: t('updateBody', { version: latest }),
@@ -820,7 +831,12 @@ window.__ModuleLoader__.load({
           : ' dsh-ntf-card--rich'
       const className = `dsh-ntf-card${shape} dsh-ntf-kind-${item.kind}${item.leaving ? ' is-leaving' : ''}`
       const openable = item.sessionId !== ''
-      const updatable = item.kind === 'update'
+      const pluginsUpdatable = item.kind === 'update-plugins'
+  const onUpdatePlugins = event => {
+    if (event !== undefined) event.stopPropagation()
+    if (typeof props.onUpdatePlugins === 'function') props.onUpdatePlugins(item)
+  }
+  const updatable = item.kind === 'update'
       const onOpen = event => {
         if (event !== undefined) event.stopPropagation()
         props.onOpen(item)
@@ -905,7 +921,9 @@ window.__ModuleLoader__.load({
           { className: 'dsh-ntf-actions' },
           updatable
             ? h('button', { type: 'button', className: 'dsh-ntf-action dsh-ntf-action--primary', onClick: onUpdate }, t('updateNow'))
-            : openable
+            : pluginsUpdatable
+              ? h('button', { type: 'button', className: 'dsh-ntf-action dsh-ntf-action--primary', onClick: onUpdatePlugins }, t('updateAll'))
+              : openable
               ? h('button', { type: 'button', className: 'dsh-ntf-action dsh-ntf-action--primary', onClick: onOpen }, t('open'))
               : null,
           h(
@@ -984,6 +1002,7 @@ window.__ModuleLoader__.load({
         onClose: controller.dismiss,
         onOpen: controller.openFromToast,
         onUpdate: controller.installUpdateFromToast,
+        onUpdatePlugins: controller.updateAllPlugins,
       })))
     }
 
@@ -1812,7 +1831,57 @@ window.__ModuleLoader__.load({
       }
 
       /** The toast action: close the offer, then install. */
-      function installUpdateFromToast(item) {
+      /** Обновить все устаревшие плагины через CLI (host). */
+  async function updateAllPlugins(item) {
+    if (item !== null && typeof item === 'object' && item.uid !== undefined) dismiss(item.uid)
+    try {
+      const response = await fetch(CONTROL_PATH, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'plugin-update-all' }),
+      })
+      const data = await response.json()
+      const results = data?.state?.results ?? []
+      const failed = results.filter((row) => row.ok !== true)
+      pushToast(
+        {
+          kind: 'update-done',
+          sessionId: '',
+          sessionTitle: '',
+          reason: '',
+          tool: '',
+          question: '',
+          message:
+            failed.length === 0
+              ? 'Обновлено плагинов: ' + results.length + '. Перезапусти DSH.'
+              : 'Не удалось обновить: ' + failed.map((row) => row.name).join(', '),
+          durationMs: 0,
+          sticky: true,
+        },
+        settings.get(),
+        { duration: 0 },
+      )
+    } catch (error) {
+      pushToast(
+        {
+          kind: 'update-error',
+          sessionId: '',
+          sessionTitle: '',
+          reason: '',
+          tool: '',
+          question: '',
+          message: 'Не удалось обновить плагины: ' + String(error?.message ?? error),
+          durationMs: 0,
+          sticky: true,
+        },
+        settings.get(),
+        { duration: 0 },
+      )
+    }
+  }
+
+  function installUpdateFromToast(item) {
         if (item !== null && typeof item === 'object' && item.uid !== undefined) dismiss(item.uid)
         void installUpdate()
       }
