@@ -514,7 +514,16 @@ window.__ModuleLoader__.load({
 
     /** The theme a card should draw with; `system` leaves the app tokens in charge. */
     function resolvedTheme(settings) {
-      return pick(settings.theme, THEMES, 'system')
+      const chosen = pick(settings.theme, THEMES, 'system')
+      // «Системная» — это тема ОС/D SH: иначе цвета плашки берутся из пустых токенов
+      // и получается серый фон вместо тёмного.
+      if (chosen !== 'system') return chosen
+      try {
+        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+      } catch {
+        // matchMedia может быть недоступен — считаем тему тёмной.
+      }
+      return 'light'
     }
 
     /** Normalize one computed CSS color to the #rrggbb / #aarrggbb the companion parses. */
