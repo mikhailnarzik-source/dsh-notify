@@ -46,6 +46,9 @@ if ([string]::IsNullOrWhiteSpace($foregroundText)) { $foregroundText = '#F2F4F7'
 $mutedText = [string]$json.muted
 if ([string]::IsNullOrWhiteSpace($mutedText)) { $mutedText = '#A4AAB3' }
 $accentText = [string]$json.accent
+# Субагентский оттенок: синий акцент вместо цвета типа.
+$subagentAccent = [string]$json.subagentAccent
+if ($json.subagent -eq $true -and $subagentAccent -match "^#[0-9A-Fa-f]{6}$") { $accentText = $subagentAccent }
 if ([string]::IsNullOrWhiteSpace($accentText)) { $accentText = '#38C98A' }
 
 $script:windowApi = $false

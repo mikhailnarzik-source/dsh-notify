@@ -503,6 +503,21 @@ let nativeSpawnTimer = null
 
   /** Attach the Session title, then publish; a title failure or a slow read must never hide the notice. */
   function announce(draft) {
+    // Завершение субагента: отдельная запись с именем агента и родительской сессией.
+    const noticeSession = sessionOf(draft.sessionId)
+    const noticeHeader = noticeSession === null || noticeSession === undefined ? undefined : noticeSession.header
+    if (noticeHeader !== undefined && noticeHeader !== null && noticeHeader.origin === 'subagent') {
+      const parentSessionId = typeof noticeHeader.parentSession === 'string' ? noticeHeader.parentSession : ''
+      void Promise.all([
+        readTitle(draft.sessionId),
+        parentSessionId === '' ? Promise.resolve('') : readTitle(parentSessionId),
+      ]).then(([agentTitle, parentTitle]) => {
+        publish({ ...draft, sessionTitle: agentTitle, subagent: true, agentTitle, parentTitle, parentSessionId })
+      }).catch(() => {
+        publish({ ...draft, subagent: true })
+      })
+      return
+    }
     const cached = titleCache.get(draft.sessionId)
     if (cached !== undefined) {
       publish({ ...draft, sessionTitle: cached.title })
@@ -524,7 +539,10 @@ let nativeSpawnTimer = null
   ctx.on('session/event', (session, event) => {
     if (session === undefined || session === null || event === null || typeof event !== 'object') return
     const header = session.header
-    if (header === undefined || header === null || header.origin === 'subagent') return
+    if (header === undefined || header === null) return
+    const isAgent = header.origin === 'subagent'
+    // Ожидание подтверждения от субагента не показываем, а завершение — да.
+    if (isAgent && event.type !== 'turn/end') return
     const sessionId = header.id
     if (typeof sessionId !== 'string') return
     // The person is asked at the moment the audit event (or the ask_user_question
@@ -742,6 +760,8 @@ let nativeSpawnTimer = null
       muteMinutesLabel: clip(String(request.muteMinutesLabel ?? ""), 30),
       unmuteLabel: clip(String(request.unmuteLabel ?? ""), 40),
       elapsedPrefix: clip(String(request.elapsedPrefix ?? ""), 30),
+      subagent: request.subagent === true,
+      subagentAccent: /^#[0-9A-Fa-f]{6}$/.test(String(request.subagentAccent ?? "")) ? String(request.subagentAccent) : "#5AA7FF",
       body: clip(String(request.body ?? ''), 200),
       meta: clip(String(request.meta ?? ''), 120),
       windowTitle,

@@ -118,6 +118,9 @@ window.__ModuleLoader__.load({
         dismiss: 'Закрыть',
         muteAction: 'Без звука 15 мин',
         unmuteAction: 'Включить звук',
+        subagentBadge: 'субагент',
+        subagentFrom: 'из сессии',
+        subagentFallback: 'без имени',
         muteMinutes: '15 мин',
         elapsedPrefix: 'висит',
         unitSec: 'с',
@@ -238,6 +241,9 @@ window.__ModuleLoader__.load({
         dismiss: 'Dismiss',
         muteAction: 'Mute 15 min',
         unmuteAction: 'Unmute',
+        subagentBadge: 'subagent',
+        subagentFrom: 'from session',
+        subagentFallback: 'unnamed',
         muteMinutes: '15 min',
         elapsedPrefix: 'on screen',
         unitSec: 's',
@@ -358,6 +364,7 @@ window.__ModuleLoader__.load({
 .dsh-ntf-kind-error{--dsh-ntf-accent:var(--dsw-alias-state-error-primary)}
 .dsh-ntf-kind-update{--dsh-ntf-accent:var(--dsw-alias-brand-primary)}
 .dsh-ntf-kind-update-done{--dsh-ntf-accent:var(--dsw-alias-state-success-primary)}
+.dsh-ntf-card.is-subagent{--dsh-ntf-accent:#5AA7FF}
 .dsh-ntf-card.dsh-ntf-gradient{background:linear-gradient(135deg,color-mix(in srgb, var(--dsh-ntf-accent) 22%, var(--dsh-ntf-surface, #1C1D22)) 0%, var(--dsh-ntf-surface, #1C1D22) 62%);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--dsh-ntf-accent) 26%, transparent),0 20px 44px -22px color-mix(in srgb, var(--dsh-ntf-text) 45%, transparent)}
 .dsh-ntf-card{--dsh-ntf-surface:var(--dsw-alias-bg-overlay);--dsh-ntf-text:var(--dsw-alias-label-primary);--dsh-ntf-muted:var(--dsw-alias-label-secondary);--dsh-ntf-edge:var(--dsw-alias-border-l2);--dsh-ntf-chip:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent);--dsh-ntf-chip-hover:color-mix(in srgb, var(--dsw-alias-label-primary) 15%, transparent);position:relative;box-sizing:border-box;width:min(392px,calc(100vw - 32px));overflow:hidden;pointer-events:auto;border:1px solid var(--dsh-ntf-edge);border-radius:13px;background:var(--dsh-ntf-surface);color:var(--dsh-ntf-text);font-family:var(--dsh-ntf-font-family,inherit);font-size:var(--dsh-ntf-font-size,13px);font-style:var(--dsh-ntf-font-style,normal);font-weight:var(--dsh-ntf-font-weight,400);box-shadow:inset 3px 0 0 var(--dsh-ntf-accent),0 20px 44px -22px color-mix(in srgb, var(--dsh-ntf-text) 45%, transparent);animation:dsh-ntf-enter .18s ease-out both}
 .dsh-ntf-card[data-theme="dark"]{--dsh-ntf-surface:#1C1D22;--dsh-ntf-text:#F2F4F7;--dsh-ntf-muted:#A4AAB3;--dsh-ntf-edge:#2E3037;--dsh-ntf-chip:#2A2C33;--dsh-ntf-chip-hover:#34363E}
@@ -781,6 +788,17 @@ window.__ModuleLoader__.load({
         const version = typeof record.latestVersion === 'string' ? record.latestVersion : ''
         return { title: t('updateDoneTitle'), meta: version, body: t('updateRestart') }
       }
+      if (record.subagent === true) {
+        const agent = typeof record.agentTitle === 'string' && record.agentTitle !== '' ? record.agentTitle : t('subagentFallback')
+        const parent = typeof record.parentTitle === 'string' && record.parentTitle !== '' ? record.parentTitle : t('untitledSession')
+        const base = `${t('subagentBadge')} «${agent}» · ${t('subagentFrom')} «${parent}»`
+        const duration = formatDuration(record.durationMs)
+        return {
+          title: record.kind === 'error' ? t('errorTitle') : t('doneTitle'),
+          meta: duration === '' ? base : `${base} · ${t('doneIn', { duration })}`,
+          body: record.kind === 'error' ? t('errorBody') : t('doneBody'),
+        }
+      }
       if (record.kind === 'done') {
         const duration = formatDuration(record.durationMs)
         return {
@@ -870,7 +888,7 @@ window.__ModuleLoader__.load({
         : props.variant === 'banner'
           ? ' dsh-ntf-banner'
           : ' dsh-ntf-card--rich'
-      const className = `dsh-ntf-card${shape} dsh-ntf-kind-${item.kind} dsh-ntf-gradient${item.leaving ? ' is-leaving' : ''}`
+      const className = `dsh-ntf-card${shape} dsh-ntf-kind-${item.kind} dsh-ntf-gradient${item.subagent === true ? ' is-subagent' : ''}${item.leaving ? ' is-leaving' : ''}`
       const openable = item.sessionId !== ''
       const updatable = item.kind === 'update'
       const onOpen = event => {
@@ -1565,6 +1583,8 @@ window.__ModuleLoader__.load({
           muteMinutesLabel: t('muteMinutes'),
           unmuteLabel: t('unmuteAction'),
           elapsedPrefix: t('elapsedPrefix'),
+          subagent: record.subagent === true,
+          subagentAccent: '#5AA7FF',
           theme: resolvedTheme(settings.get()),
           windowTitle: pageTitle,
           record: {
