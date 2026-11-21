@@ -1114,6 +1114,19 @@ export function apply(ctx) {
         return jsonResponse({ ok: showNativeCard(body), native: nativeSupported() })
       }
       // Self-update: the page reads the status, asks for a check, or installs.
+      if (body.type === 'test-toast') {
+        // Диагностика: показать тестовую плашку по запросу.
+        publish({
+          kind: 'attention',
+          sessionId: '',
+          sessionTitle: 'Проверка уведомлений',
+          reason: 'тест',
+          message: 'Если вы видите эту плашку и слышите звук — всё работает.',
+          durationMs: 0,
+          sticky: true,
+        })
+        return jsonResponse({ ok: true })
+      }
       if (body.type === 'client-start') {
         // Клиентская часть уведомлений загрузилась — фиксируем в журнале.
         void appendLog('client-start', true, 'клиент уведомлений запущен')
