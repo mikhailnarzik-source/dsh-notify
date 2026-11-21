@@ -762,6 +762,8 @@ let nativeSpawnTimer = null
       elapsedPrefix: clip(String(request.elapsedPrefix ?? ""), 30),
       subagent: request.subagent === true,
       subagentAccent: /^#[0-9A-Fa-f]{6}$/.test(String(request.subagentAccent ?? "")) ? String(request.subagentAccent) : "#5AA7FF",
+      kindLabel: clip(String(request.kindLabel ?? ""), 24),
+      kindAccent: /^#[0-9A-Fa-f]{6}$/.test(String(request.kindAccent ?? "")) ? String(request.kindAccent) : "",
       body: clip(String(request.body ?? ''), 200),
       meta: clip(String(request.meta ?? ''), 120),
       windowTitle,

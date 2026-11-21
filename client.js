@@ -119,6 +119,9 @@ window.__ModuleLoader__.load({
         muteAction: 'Без звука 15 мин',
         unmuteAction: 'Включить звук',
         subagentBadge: 'субагент',
+        kindShortDone: 'готово',
+        kindShortAttention: 'внимание',
+        kindShortError: 'ошибка',
         subagentFrom: 'из сессии',
         subagentFallback: 'без имени',
         muteMinutes: '15 мин',
@@ -242,6 +245,9 @@ window.__ModuleLoader__.load({
         muteAction: 'Mute 15 min',
         unmuteAction: 'Unmute',
         subagentBadge: 'subagent',
+        kindShortDone: 'done',
+        kindShortAttention: 'attention',
+        kindShortError: 'error',
         subagentFrom: 'from session',
         subagentFallback: 'unnamed',
         muteMinutes: '15 min',
@@ -365,6 +371,13 @@ window.__ModuleLoader__.load({
 .dsh-ntf-kind-update{--dsh-ntf-accent:var(--dsw-alias-brand-primary)}
 .dsh-ntf-kind-update-done{--dsh-ntf-accent:var(--dsw-alias-state-success-primary)}
 .dsh-ntf-card.is-subagent{--dsh-ntf-accent:#5AA7FF}
+.dsh-ntf-kind-chip{display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border-radius:6px;font-size:0.72em;font-weight:600;letter-spacing:0.02em;text-transform:uppercase;vertical-align:middle}
+.dsh-ntf-kind-chip.kind-done{color:#3BD69A;background:rgba(59,214,154,0.16)}
+.dsh-ntf-kind-chip.kind-attention{color:#F0BE58;background:rgba(240,190,88,0.16)}
+.dsh-ntf-kind-chip.kind-error{color:#F07B7B;background:rgba(240,123,123,0.16)}
+.dsh-ntf-card.is-subagent.dsh-ntf-kind-done .dsh-ntf-icon{color:#3BD69A}
+.dsh-ntf-card.is-subagent.dsh-ntf-kind-attention .dsh-ntf-icon{color:#F0BE58}
+.dsh-ntf-card.is-subagent.dsh-ntf-kind-error .dsh-ntf-icon{color:#F07B7B}
 .dsh-ntf-card.dsh-ntf-gradient{background:linear-gradient(135deg,color-mix(in srgb, var(--dsh-ntf-accent) 22%, var(--dsh-ntf-surface, #1C1D22)) 0%, var(--dsh-ntf-surface, #1C1D22) 62%);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--dsh-ntf-accent) 26%, transparent),0 20px 44px -22px color-mix(in srgb, var(--dsh-ntf-text) 45%, transparent)}
 .dsh-ntf-card{--dsh-ntf-surface:var(--dsw-alias-bg-overlay);--dsh-ntf-text:var(--dsw-alias-label-primary);--dsh-ntf-muted:var(--dsw-alias-label-secondary);--dsh-ntf-edge:var(--dsw-alias-border-l2);--dsh-ntf-chip:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent);--dsh-ntf-chip-hover:color-mix(in srgb, var(--dsw-alias-label-primary) 15%, transparent);position:relative;box-sizing:border-box;width:min(392px,calc(100vw - 32px));overflow:hidden;pointer-events:auto;border:1px solid var(--dsh-ntf-edge);border-radius:13px;background:var(--dsh-ntf-surface);color:var(--dsh-ntf-text);font-family:var(--dsh-ntf-font-family,inherit);font-size:var(--dsh-ntf-font-size,13px);font-style:var(--dsh-ntf-font-style,normal);font-weight:var(--dsh-ntf-font-weight,400);box-shadow:inset 3px 0 0 var(--dsh-ntf-accent),0 20px 44px -22px color-mix(in srgb, var(--dsh-ntf-text) 45%, transparent);animation:dsh-ntf-enter .18s ease-out both}
 .dsh-ntf-card[data-theme="dark"]{--dsh-ntf-surface:#1C1D22;--dsh-ntf-text:#F2F4F7;--dsh-ntf-muted:#A4AAB3;--dsh-ntf-edge:#2E3037;--dsh-ntf-chip:#2A2C33;--dsh-ntf-chip-hover:#34363E}
@@ -889,6 +902,10 @@ window.__ModuleLoader__.load({
           ? ' dsh-ntf-banner'
           : ' dsh-ntf-card--rich'
       const className = `dsh-ntf-card${shape} dsh-ntf-kind-${item.kind} dsh-ntf-gradient${item.subagent === true ? ' is-subagent' : ''}${item.leaving ? ' is-leaving' : ''}`
+      const kindShort = item.kind === 'error' ? t('kindShortError') : item.kind === 'attention' ? t('kindShortAttention') : t('kindShortDone')
+      const kindBadge = item.subagent === true
+        ? h('span', { className: `dsh-ntf-kind-chip kind-${item.kind}` }, kindShort)
+        : null
       const openable = item.sessionId !== ''
       const updatable = item.kind === 'update'
       const onOpen = event => {
@@ -955,6 +972,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'dsh-ntf-compact-body' },
           h('div', { className: 'dsh-ntf-title' },
             info.title,
+            kindBadge,
             item.count > 1 ? h('span', { className: 'dsh-ntf-count' }, `×${item.count}`) : null),
           h('div', { className: 'dsh-ntf-inline' }, info.body)),
         updatable
@@ -1584,6 +1602,8 @@ window.__ModuleLoader__.load({
           unmuteLabel: t('unmuteAction'),
           elapsedPrefix: t('elapsedPrefix'),
           subagent: record.subagent === true,
+          kindLabel: (record.kind === 'error' ? t('kindShortError') : record.kind === 'attention' ? t('kindShortAttention') : t('kindShortDone')),
+          kindAccent: (() => { const palette = readPalette(); return palette[record.kind === 'error' ? 'error' : record.kind === 'attention' ? 'attention' : 'done'] })(),
           subagentAccent: '#5AA7FF',
           theme: resolvedTheme(settings.get()),
           windowTitle: pageTitle,

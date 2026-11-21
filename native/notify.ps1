@@ -47,6 +47,8 @@ $mutedText = [string]$json.muted
 if ([string]::IsNullOrWhiteSpace($mutedText)) { $mutedText = '#A4AAB3' }
 $accentText = [string]$json.accent
 # Субагентский оттенок: синий акцент вместо цвета типа.
+$kindAccent = [string]$json.kindAccent
+if ([string]::IsNullOrWhiteSpace($kindAccent)) { $kindAccent = $accentText }
 $subagentAccent = [string]$json.subagentAccent
 if ($json.subagent -eq $true -and $subagentAccent -match "^#[0-9A-Fa-f]{6}$") { $accentText = $subagentAccent }
 if ([string]::IsNullOrWhiteSpace($accentText)) { $accentText = '#38C98A' }
@@ -546,8 +548,8 @@ $iconCircle = New-Object System.Windows.Controls.Border
 $iconCircle.Width = 24
 $iconCircle.Height = 24
 $iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 12
-$iconBg = Blend $accentText $backgroundText 0.30
-$iconBorder = Blend $accentText $backgroundText 0.55
+$iconBg = Blend $kindAccent $backgroundText 0.30
+$iconBorder = Blend $kindAccent $backgroundText 0.55
 $iconCircle.Background = Get-Brush $iconBg $iconBg
 $iconCircle.BorderBrush = Get-Brush $iconBorder $iconBorder
 $iconCircle.BorderThickness = New-Object System.Windows.Thickness 1
@@ -575,7 +577,7 @@ if ($notifyKind -eq "error") { $glyphText = [string][char]0x2715 }
 $iconGlyph.Text = $glyphText
 $iconGlyph.FontSize = 12.5
 $iconGlyph.FontWeight = [System.Windows.FontWeights]::Bold
-$iconGlyph.Foreground = $accentBrush
+$iconGlyph.Foreground = Get-Brush $kindAccent $kindAccent
 $iconGlyph.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 $iconGlyph.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
 $iconCircle.Child = $iconGlyph
@@ -592,7 +594,10 @@ $title.FontWeight = [System.Windows.FontWeights]::SemiBold
 $title.Foreground = $fgBrush
 $title.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
 $title.FontStyle = $styleValue
-$null = $heading.Children.Add($title)
+$titleRow = New-Object System.Windows.Controls.StackPanel
+$titleRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+$null = $titleRow.Children.Add($title)
+$null = $heading.Children.Add($titleRow)
 
 $subtitleText = [string]$json.subtitle
 if ([string]::IsNullOrWhiteSpace($subtitleText)) { $subtitleText = [string]$json.meta }
@@ -605,6 +610,27 @@ if (-not [string]::IsNullOrWhiteSpace($subtitleText) -and $subtitleText.Trim() -
   $subtitle.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
   $subtitle.FontStyle = $styleValue
   $null = $heading.Children.Add($subtitle)
+}
+$kindBadgeLabel = [string]$json.kindLabel
+if ($json.subagent -eq $true -and -not [string]::IsNullOrWhiteSpace($kindBadgeLabel)) {
+  $kindBadgeBg = Blend $kindAccent $backgroundText 0.18
+  $kindBadgeBorder = Blend $kindAccent $backgroundText 0.45
+  $kindBadge = New-Object System.Windows.Controls.Border
+  $kindBadge.CornerRadius = New-Object System.Windows.CornerRadius 6
+  $kindBadge.Background = Get-Brush $kindBadgeBg $kindBadgeBg
+  $kindBadge.BorderBrush = Get-Brush $kindBadgeBorder $kindBadgeBorder
+  $kindBadge.BorderThickness = New-Object System.Windows.Thickness 1
+  $kindBadge.Padding = New-Object System.Windows.Thickness 6, 1, 6, 1
+  $kindBadge.Margin = New-Object System.Windows.Thickness 8, 1, 0, 0
+  $kindBadge.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+  $kindBadge.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+  $kindBadgeText = New-Object System.Windows.Controls.TextBlock
+  $kindBadgeText.Text = $kindBadgeLabel.ToUpperInvariant()
+  $kindBadgeText.FontSize = 9.5
+  $kindBadgeText.FontWeight = [System.Windows.FontWeights]::SemiBold
+  $kindBadgeText.Foreground = Get-Brush $kindAccent $kindAccent
+  $kindBadge.Child = $kindBadgeText
+  $null = $titleRow.Children.Add($kindBadge)
 }
 
 $close = New-Object System.Windows.Controls.Border
