@@ -1119,10 +1119,10 @@ export function apply(ctx) {
       if (body.type === 'test-toast') {
         // Диагностика: показать тестовую плашку по запросу.
         publish({
-          kind: 'attention',
-          sessionId: '',
+          kind: 'done',
+          sessionId: 'test-session',
           sessionTitle: 'Проверка уведомлений',
-          reason: 'тест',
+          reason: '',
           message: 'Если вы видите эту плашку и слышите звук — всё работает.',
           durationMs: 0,
           sticky: true,
