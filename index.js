@@ -714,7 +714,7 @@ export function apply(ctx) {
       weight: nativePresentation.fonts.weight,
       italic: nativePresentation.fonts.italic,
       corner: nativePresentation.corner,
-      offset: nativeOffset % MAX_NATIVE_CARDS,
+      offset: nativeCards.size,
       width: nativePresentation.width,
       durationMs: nativePresentation.durationMs,
     }

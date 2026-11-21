@@ -63,7 +63,7 @@ window.__ModuleLoader__.load({
     /** Fixed palettes for an explicitly chosen theme; `system` reads the app tokens. */
     const NATIVE_PALETTES = {
       dark: {
-        background: '#F21C1D22',
+        background: '#FF1C1D22',
         foreground: '#F2F4F7',
         muted: '#A4AAB3',
         border: '#2E3037',
@@ -72,7 +72,7 @@ window.__ModuleLoader__.load({
         error: '#F07B7B',
       },
       light: {
-        background: '#F2FFFFFF',
+        background: '#FFF7F8FA',
         foreground: '#16181D',
         muted: '#626873',
         border: '#E4E6EB',
