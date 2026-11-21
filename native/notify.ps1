@@ -829,6 +829,7 @@ function Get-CardTarget {
 # Плавная анимация средствами WPF: композитор интерполирует сам, без дёрганья таймера.
 function Animate-Card([double]$targetLeft, [double]$targetTop, [int]$durationMs, [switch]$NoFade) {
   try {
+    if ([Math]::Abs($script:window.Left - $targetLeft) -lt 1 -and [Math]::Abs($script:window.Top - $targetTop) -lt 1 -and $script:window.Opacity -ge 0.99) { return }
     $ease = New-Object System.Windows.Media.Animation.CubicEase
     $ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
     $span = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds($durationMs))
@@ -937,20 +938,27 @@ $script:window.Add_Loaded({
       if ($seconds -lt 0) { $seconds = 0 }
       $elapsedText.Text = ("{0}:{1:00}" -f [int]($seconds / 60), ($seconds % 60))
       Update-MuteState
-      if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
-        $raw = ""
-        try { $raw = [System.IO.File]::ReadAllText($actionFile) } catch { }
-        if ($raw.StartsWith("slot:")) {
-          try { $json.slot = [int]$raw.Substring(5) } catch { }
-          $late = Get-CardTarget
-          Animate-Card $late.left $late.top 220 -NoFade
-          try { [System.IO.File]::WriteAllText($actionFile, "", [System.Text.Encoding]::UTF8) } catch { }
-        }
-      }
     } catch { }
   })
   Update-MuteState
   $script:elapsedTimer.Start()
+  # Быстрый опрос команд раскладки: 120 мс, чтобы стопка перестраивалась сразу.
+  $script:slotTimer = New-Object System.Windows.Threading.DispatcherTimer
+  $script:slotTimer.Interval = [TimeSpan]::FromMilliseconds(120)
+  $script:slotTimer.Add_Tick({
+    try {
+      if ([string]::IsNullOrWhiteSpace($actionFile)) { return }
+      $rawSlot = ""
+      try { $rawSlot = [System.IO.File]::ReadAllText($actionFile) } catch { }
+      if ($rawSlot.StartsWith("slot:")) {
+        try { $json.slot = [int]$rawSlot.Substring(5) } catch { }
+        $late = Get-CardTarget
+        Animate-Card $late.left $late.top 240 -NoFade
+        try { [System.IO.File]::WriteAllText($actionFile, "", [System.Text.Encoding]::UTF8) } catch { }
+      }
+    } catch { }
+  })
+  $script:slotTimer.Start()
   try {
     $script:window.SizeToContent = [System.Windows.SizeToContent]::Manual
     $probe = New-Object System.Windows.Size (($width - 30), [double]::PositiveInfinity)

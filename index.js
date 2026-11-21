@@ -226,7 +226,12 @@ export function apply(ctx) {
       error: '#E05B5B',
     },
   }
-  /** Live always-on-top cards, keyed by the page's token. */
+  /** Очередь появления: минимум 380 мс между карточками, чтобы анимации успевали. */
+const nativeSpawnQueue = []
+let nativeLastSpawnAt = 0
+let nativeSpawnTimer = null
+
+/** Live always-on-top cards, keyed by the page's token. */
   const nativeCards = new Map()
   /** Токены в порядке появления: последний — самый новый (нижний слот). */
   const nativeOrder = []
@@ -688,6 +693,27 @@ export function apply(ctx) {
   /** Ask the Windows companion to draw one card above every other application. */
   function showNativeCard(request) {
     if (!nativeSupported() || nativePresentation.enabled !== true || nativePresentation.gameMode === true) return false
+    // Появление с шагом: карточки не выскакивают пачкой и анимации успевают доиграть.
+    const queueNow = Date.now()
+    if (queueNow - nativeLastSpawnAt < 380) {
+      nativeSpawnQueue.push(request)
+      if (nativeSpawnTimer === null) {
+        nativeSpawnTimer = setTimeout(() => {
+          nativeSpawnTimer = null
+          const next = nativeSpawnQueue.shift()
+          if (next !== undefined) showNativeCard(next)
+        }, 380 - (queueNow - nativeLastSpawnAt))
+      }
+      return true
+    }
+    nativeLastSpawnAt = queueNow
+    if (nativeSpawnQueue.length > 0 && nativeSpawnTimer === null) {
+      nativeSpawnTimer = setTimeout(() => {
+        nativeSpawnTimer = null
+        const next = nativeSpawnQueue.shift()
+        if (next !== undefined) showNativeCard(next)
+      }, 380)
+    }
     const title = clip(String(request.title ?? ''), 120)
     const sessionIdForCard = typeof request.sessionId === 'string' && request.sessionId !== '' ? request.sessionId : 'title:' + title
     if (title === '') return false
@@ -775,7 +801,7 @@ export function apply(ctx) {
     nativeCards.set(token, entry)
     nativeOrder.push(token)
     // Повторяем раскладку чуть позже: карточка могла ещё не успеть открыться.
-    for (let attempt = 1; attempt <= 6; attempt += 1) setTimeout(() => nativeSlots(), attempt * 220)
+    for (const delay of [120, 350, 650, 1000, 1500, 2200]) setTimeout(() => nativeSlots(), delay)
     // Не больше, чем влезает на экран: старейшие закрываем.
     while (nativeOrder.length > nativePresentation.maxCards) {
       const oldest = nativeOrder.shift()
