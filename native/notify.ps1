@@ -525,8 +525,8 @@ $root.Effect = $shadow
 $script:window.Content = $root
 
 $body = New-Object System.Windows.Controls.StackPanel
-$body.Margin = New-Object System.Windows.Thickness 14, 11, 14, 11
-$body.Width = $width - 28
+$body.Margin = New-Object System.Windows.Thickness 12, 9, 12, 9
+$body.Width = $width - 24
 $root.Child = $body
 
 # Шапка: иконка, заголовок с подзаголовком, крестик.
@@ -543,9 +543,9 @@ $header.ColumnDefinitions.Add($closeColumn)
 $null = $body.Children.Add($header)
 
 $iconCircle = New-Object System.Windows.Controls.Border
-$iconCircle.Width = 26
-$iconCircle.Height = 26
-$iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 13
+$iconCircle.Width = 24
+$iconCircle.Height = 24
+$iconCircle.CornerRadius = New-Object System.Windows.CornerRadius 12
 $iconBg = Blend $accentText $backgroundText 0.30
 $iconBorder = Blend $accentText $backgroundText 0.55
 $iconCircle.Background = Get-Brush $iconBg $iconBg
@@ -587,7 +587,7 @@ $null = $header.Children.Add($heading)
 
 $title = New-Object System.Windows.Controls.TextBlock
 $title.Text = [string]$json.title
-$title.FontSize = 13.5
+$title.FontSize = 13
 $title.FontWeight = [System.Windows.FontWeights]::SemiBold
 $title.Foreground = $fgBrush
 $title.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
@@ -633,12 +633,12 @@ $close.Add_MouseLeftButtonUp({ $script:result = 0; $script:window.Close() })
 # Текст уведомления одной строкой.
 $bodyText = New-Object System.Windows.Controls.TextBlock
 $bodyText.Text = [string]$json.body
-$bodyText.Margin = New-Object System.Windows.Thickness 0, 7, 0, 0
+$bodyText.Margin = New-Object System.Windows.Thickness 0, 5, 0, 0
 $bodyText.FontSize = 12.5
 $bodyText.Foreground = $fgBrush
 $bodyText.TextWrapping = [System.Windows.TextWrapping]::NoWrap
 $bodyText.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
-$bodyText.Width = $width - 28
+$bodyText.Width = $width - 24
 $bodyText.FontStyle = $styleValue
 $null = $body.Children.Add($bodyText)
 
@@ -647,12 +647,12 @@ $divider = New-Object System.Windows.Controls.Border
 $divider.Height = 1
 $dividerBg = Blend $foregroundText $backgroundText 0.10
 $divider.Background = Get-Brush $dividerBg $dividerBg
-$divider.Margin = New-Object System.Windows.Thickness 0, 9, 0, 0
+$divider.Margin = New-Object System.Windows.Thickness 0, 7, 0, 0
 $null = $body.Children.Add($divider)
 
 # Нижняя строка: действия слева, время и таймер справа в две строки.
 $footer = New-Object System.Windows.Controls.Grid
-$footer.Margin = New-Object System.Windows.Thickness 0, 8, 0, 0
+$footer.Margin = New-Object System.Windows.Thickness 0, 6, 0, 0
 $actionsColumn = New-Object System.Windows.Controls.ColumnDefinition
 $actionsColumn.Width = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
 $metaColumn = New-Object System.Windows.Controls.ColumnDefinition
@@ -674,7 +674,7 @@ $openBorder = Blend $accentText $backgroundText 0.6
 $open.Background = Get-Brush $openBg $openBg
 $open.BorderBrush = Get-Brush $openBorder $openBorder
 $open.BorderThickness = New-Object System.Windows.Thickness 1
-$open.Padding = New-Object System.Windows.Thickness 12, 4, 12, 4
+$open.Padding = New-Object System.Windows.Thickness 10, 3, 10, 3
 $open.Cursor = [System.Windows.Input.Cursors]::Hand
 $null = $actions.Children.Add($open)
 
@@ -694,7 +694,7 @@ $muteBorder = Blend $foregroundText $backgroundText 0.28
 $mute.Background = Get-Brush $muteBg $muteBg
 $mute.BorderBrush = Get-Brush $muteBorder $muteBorder
 $mute.BorderThickness = New-Object System.Windows.Thickness 1
-$mute.Padding = New-Object System.Windows.Thickness 8, 4, 8, 4
+$mute.Padding = New-Object System.Windows.Thickness 7, 3, 7, 3
 $mute.Margin = New-Object System.Windows.Thickness 6, 0, 0, 0
 $mute.Cursor = [System.Windows.Input.Cursors]::Hand
 $mute.ToolTip = [string]$json.muteLabel
@@ -854,7 +854,7 @@ $script:window.Add_Loaded({
     $script:window.SizeToContent = [System.Windows.SizeToContent]::Manual
     $probe = New-Object System.Windows.Size (($width - 30), [double]::PositiveInfinity)
     $body.Measure($probe)
-    $needed = [Math]::Ceiling($body.DesiredSize.Height) + 28
+    $needed = [Math]::Ceiling($body.DesiredSize.Height) + 20
     if ($needed -gt 40) { $script:window.Height = $needed }
   } catch {
   }
