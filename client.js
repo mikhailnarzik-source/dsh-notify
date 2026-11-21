@@ -113,6 +113,8 @@ window.__ModuleLoader__.load({
         errorBody: 'Не удалось завершить задачу.',
         maxTokensBody: 'Ответ оборван по лимиту длины.',
         untitledSession: 'Без названия',
+        markDone: 'Готово',
+
         open: 'Перейти',
         dismiss: 'Закрыть',
         unitSec: 'с',
@@ -229,6 +231,8 @@ window.__ModuleLoader__.load({
         errorBody: 'The task could not be finished.',
         maxTokensBody: 'The answer was cut off at the length limit.',
         untitledSession: 'Untitled',
+        markDone: 'Done',
+
         open: 'Open',
         dismiss: 'Dismiss',
         unitSec: 's',
@@ -896,11 +900,28 @@ window.__ModuleLoader__.load({
             info.title,
             item.count > 1 ? h('span', { className: 'dsh-ntf-count' }, `×${item.count}`) : null),
           h('div', { className: 'dsh-ntf-banner-body' }, info.body)),
-        updatable
-          ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onUpdate }, t('updateNow'))
-          : openable
-            ? h('button', { type: 'button', className: 'dsh-ntf-action', onClick: onOpen }, t('open'))
-            : null,
+        h(
+          'div',
+          { className: 'dsh-ntf-actions' },
+          updatable
+            ? h('button', { type: 'button', className: 'dsh-ntf-action dsh-ntf-action--primary', onClick: onUpdate }, t('updateNow'))
+            : openable
+              ? h('button', { type: 'button', className: 'dsh-ntf-action dsh-ntf-action--primary', onClick: onOpen }, t('open'))
+              : null,
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-ntf-action dsh-ntf-done',
+              title: t('markDone'),
+              onClick: (event) => {
+                event.stopPropagation()
+                props.onClose(item)
+              },
+            },
+            '✓ ' + t('markDone'),
+          ),
+        ),
         close,
         progress)
       }
