@@ -1654,7 +1654,13 @@ window.__ModuleLoader__.load({
         persistHistory(next)
       }
 
-      function pushToast(record, config, options = {}) {
+      /** Виды плашек, которые не закрываются по таймеру. */
+    const STICKY_KINDS = ['update', 'update-done', 'update-error', 'attention', 'error']
+
+    function pushToast(record, config, options = {}) {
+      // Такие события человек должен успеть прочитать и нажать кнопку.
+      const sticky = record.sticky === true || STICKY_KINDS.includes(record.kind)
+      record = { ...record, sticky }
         const existing = toasts.get().find(item =>
           item.kind === record.kind
           && item.sessionId === record.sessionId
@@ -1683,7 +1689,7 @@ window.__ModuleLoader__.load({
           ...record,
           uid: record.uid,
           createdAt: Date.now(),
-          duration: record.sticky === true ? 0 : (Number.isFinite(options.duration) ? options.duration : config.duration),
+          duration: sticky ? 0 : (Number.isFinite(options.duration) ? options.duration : config.duration),
           unseen: options.unseen === true,
           leaving: false,
           count: 1,
