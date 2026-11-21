@@ -633,7 +633,7 @@ window.__ModuleLoader__.load({
         return compressor
       }
 
-      function play(audio, spec, volume) {
+      function playTone(audio, spec, volume) {
         try {
           const start = audio.currentTime + spec.delay
           const oscillator = audio.createOscillator()
@@ -658,10 +658,10 @@ window.__ModuleLoader__.load({
       function tone(spec, volume) {
         const audio = ensure()
         if (audio === null) return
-        if (audio.state === 'running') { play(audio, spec, volume); return }
+        if (audio.state === 'running') { playTone(audio, spec, volume); return }
         // Браузер держит аудио на паузе до первого действия пользователя:
         // ждём разблокировки и только тогда играем.
-        void audio.resume().then(() => { if (audio.state === 'running') play(audio, spec, volume) }).catch(() => {})
+        void audio.resume().then(() => { if (audio.state === 'running') playTone(audio, spec, volume) }).catch(() => {})
       }
 
       /** Разблокировать звук при первом действии пользователя. */
