@@ -1919,7 +1919,7 @@ window.__ModuleLoader__.load({
         const watchingThisChat = windowActive && record.sessionId !== '' && activeSession.get() === record.sessionId
         if (config.sound === true) audio.play(kind, config.volume / 100)
         const showToast = force === true
-          || (config.notifications === true && config.gameMode !== true && !watchingThisChat)
+          || (config.notifications === true && config.gameMode !== true)
         // While the app window is not the one in front, a Windows companion card
         // floats above every other application; the in-app toast would be hidden.
         const useNative = showToast
