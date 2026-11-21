@@ -731,7 +731,7 @@ export function apply(ctx) {
       weight: nativePresentation.fonts.weight,
       italic: nativePresentation.fonts.italic,
       corner: nativePresentation.corner,
-      slot: Math.min(nativeCards.size, nativePresentation.maxCards - 1),
+      slot: 0,
       width: nativePresentation.width,
       durationMs: nativePresentation.durationMs,
     }
