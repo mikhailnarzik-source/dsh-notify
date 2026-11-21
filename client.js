@@ -89,7 +89,7 @@ window.__ModuleLoader__.load({
       variant: 'card',
       position: 'bottom-right',
       duration: 6000,
-      volume: 60,
+      volume: 90,
       gameMode: false,
       system: false,
       textSize: 13,
@@ -170,7 +170,7 @@ window.__ModuleLoader__.load({
         sound: 'Звуковые уведомления',
         soundHint: 'Мягкие сигналы: завершение, внимание, ошибка.',
         volume: 'Громкость',
-        volumeHint: 'Относительная громкость сигналов.',
+        volumeHint: 'Громкость сигналов: 100% — обычно, до 200% — заметно громче.',
         groupSystem: 'Системные уведомления',
         system: 'Показывать в системе',
         systemHint: 'Уведомление Windows, когда приложение свёрнуто или не в фокусе. В полноэкранной игре Windows может его скрыть.',
@@ -286,7 +286,7 @@ window.__ModuleLoader__.load({
         sound: 'Sound notifications',
         soundHint: 'Soft cues: finished, attention, error.',
         volume: 'Volume',
-        volumeHint: 'Relative loudness of the cues.',
+        volumeHint: 'Loudness of the cues: 100% is the usual level, up to 200% for louder.',
         groupSystem: 'System notifications',
         system: 'Show in the system',
         systemHint: 'A Windows notification while the app window is in the background. Windows may hide it in a fullscreen game.',
@@ -618,9 +618,22 @@ window.__ModuleLoader__.load({
         }
       }
 
-      function tone(spec, volume) {
-        const audio = ensure()
-        if (audio === null || audio.state !== 'running') return
+      /** Общий выход с компрессором: громко, но без хрипа. */
+      let master
+      function output(audio) {
+        if (master !== undefined) return master
+        const compressor = audio.createDynamicsCompressor()
+        compressor.threshold.value = -14
+        compressor.knee.value = 8
+        compressor.ratio.value = 6
+        compressor.attack.value = 0.003
+        compressor.release.value = 0.18
+        compressor.connect(audio.destination)
+        master = compressor
+        return compressor
+      }
+
+      function play(audio, spec, volume) {
         try {
           const start = audio.currentTime + spec.delay
           const oscillator = audio.createOscillator()
@@ -628,17 +641,40 @@ window.__ModuleLoader__.load({
           oscillator.type = spec.type
           oscillator.frequency.setValueAtTime(spec.freq, start)
           if (spec.glide !== undefined) oscillator.frequency.exponentialRampToValueAtTime(spec.glide, start + spec.duration)
-          const peak = Math.max(0.0002, spec.peak * volume)
+          // Усиление: при 100% сигнал в 2.2 раза громче прежнего, выше — ещё громче.
+          const peak = Math.max(0.0002, Math.min(0.98, spec.peak * volume * 2.2))
           gain.gain.setValueAtTime(0.0001, start)
           gain.gain.exponentialRampToValueAtTime(peak, start + 0.014)
           gain.gain.exponentialRampToValueAtTime(0.0001, start + spec.duration)
           oscillator.connect(gain)
-          gain.connect(audio.destination)
+          gain.connect(output(audio))
           oscillator.start(start)
           oscillator.stop(start + spec.duration + 0.04)
         } catch {
           // A refused or interrupted audio graph is not worth a visible error.
         }
+      }
+
+      function tone(spec, volume) {
+        const audio = ensure()
+        if (audio === null) return
+        if (audio.state === 'running') { play(audio, spec, volume); return }
+        // Браузер держит аудио на паузе до первого действия пользователя:
+        // ждём разблокировки и только тогда играем.
+        void audio.resume().then(() => { if (audio.state === 'running') play(audio, spec, volume) }).catch(() => {})
+      }
+
+      /** Разблокировать звук при первом действии пользователя. */
+      function unlock() {
+        const audio = ensure()
+        if (audio !== null && audio.state === 'suspended') void audio.resume().catch(() => {})
+      }
+      try {
+        for (const event of ['pointerdown', 'keydown', 'touchstart', 'focus']) {
+          window.addEventListener(event, unlock, { passive: true })
+        }
+      } catch {
+        // без разблокировки звук появится после первого клика по плашке
       }
 
       const SOUNDS = {
@@ -1242,7 +1278,7 @@ window.__ModuleLoader__.load({
                     className: 'dsh-ntf-range',
                     type: 'range',
                     min: 0,
-                    max: 100,
+                    max: 200,
                     step: 5,
                     value: settings.volume,
                     'aria-label': t('volume'),
