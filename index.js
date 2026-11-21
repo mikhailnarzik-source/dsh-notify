@@ -177,7 +177,15 @@ async function checkAllPlugins() {
     rows.push({ name, repo, installed, latest: latest ?? '', behind: latest !== undefined && compareVersions(latest, installed) > 0 })
   }
   pluginCheck = { at: Date.now(), rows, checked: rows.length }
-  return { ...pluginCheck, outdated: rows.filter((row) => row.behind === true) }
+  const outdated = rows.filter((row) => row.behind === true)
+  // Журнал: что проверяли и что нашли.
+  void appendLog(
+    'update-check',
+    true,
+    'проверено ' + rows.length + ', устарело ' + outdated.length +
+      (outdated.length === 0 ? '' : ': ' + outdated.map((row) => row.name + ' ' + row.installed + '→' + row.latest).join(', ')),
+  )
+  return { ...pluginCheck, outdated }
 }
 
 /** Путь к CLI DeepSeek Harness. */
@@ -209,6 +217,7 @@ async function updatePlugins(names) {
     await runCli(['plugin', '--profile', process.env.DSH_PROFILE ?? 'desktop', 'remove', name])
     const added = await runCli(['plugin', '--profile', process.env.DSH_PROFILE ?? 'desktop', 'add', `github:${UPDATE_OWNER}/${repo}`])
     results.push({ name, repo, ok: added.ok, output: added.output.slice(-400) })
+    void appendLog('plugin-update', added.ok, name + ': ' + (added.ok ? 'обновлён' : 'ошибка'))
   }
   return { at: Date.now(), results, outdated: [] }
 }
