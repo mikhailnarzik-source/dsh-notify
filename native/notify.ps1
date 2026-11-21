@@ -654,9 +654,11 @@ $closeGlyph.Foreground = $mutedBrush
 $closeGlyph.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 $closeGlyph.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
 $close.Child = $closeGlyph
+$script:closePressed = $false
+$close.Add_MouseLeftButtonDown({ $script:closePressed = $true })
 $close.Add_MouseEnter({ $closeHoverBg = Blend $foregroundText $backgroundText 0.16; $close.Background = Get-Brush $closeHoverBg $closeHoverBg; $closeGlyph.Foreground = $fgBrush })
 $close.Add_MouseLeave({ $close.Background = Get-Brush $closeBg $closeBg; $closeGlyph.Foreground = $mutedBrush })
-$close.Add_MouseLeftButtonUp({ Close-Card 0 })
+$close.Add_MouseLeftButtonUp({ if (-not $script:closePressed) { return }; $script:closePressed = $false; Close-Card 0 })
 
 # Текст уведомления одной строкой.
 $bodyText = New-Object System.Windows.Controls.TextBlock
@@ -713,8 +715,10 @@ $openLabelText.FontSize = 12
 $openLabelText.FontWeight = [System.Windows.FontWeights]::SemiBold
 $openLabelText.Foreground = $accentBrush
 $open.Child = $openLabelText
+$script:openPressed = $false
+$open.Add_MouseLeftButtonDown({ $script:openPressed = $true })
 $open.Add_MouseEnter({ $hoverBg = Blend $accentText $backgroundText 0.2; $open.Background = Get-Brush $hoverBg $hoverBg })
-$open.Add_MouseLeave({ $open.Background = Get-Brush $openBg $openBg })
+$open.Add_MouseLeave({ $script:openPressed = $false; $open.Background = Get-Brush $openBg $openBg })
 
 # Кнопка звука: показывает состояние и оставшееся время приглушения.
 $muteMinutesLabel = [string]$json.muteMinutesLabel
@@ -787,6 +791,8 @@ function Update-MuteState {
 }
 
 $mute.Add_MouseLeftButtonUp({
+  if (-not $script:mutePressed) { return }
+  $script:mutePressed = $false
   $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
   if (-not [string]::IsNullOrWhiteSpace($actionFile)) {
     $command = if ($script:mutedUntil -gt $nowMs) { "unmute" } else { "mute" }
@@ -829,7 +835,7 @@ function Request-Open {
   $script:window.Close()
 }
 
-$open.Add_MouseLeftButtonUp({ Request-Open })
+$open.Add_MouseLeftButtonUp({ if (-not $script:openPressed) { return }; $script:openPressed = $false; Request-Open })
 
 if ($SelfTest) {
   $script:window.Add_Loaded({

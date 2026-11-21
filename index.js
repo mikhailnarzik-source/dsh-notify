@@ -871,7 +871,6 @@ let nativeSpawnTimer = null
       } catch {
         // Best effort.
       }
-      void appendLog('native-exit', true, 'code=' + String(code) + ' action=' + JSON.stringify(action) + ' session=' + String(sessionId))
       if (action === 'open' || code === 10) {
         // The person pressed "open": focus the app window (done by the companion)
         // and let the page open the chat.
