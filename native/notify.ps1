@@ -614,7 +614,7 @@ if (-not [string]::IsNullOrWhiteSpace($subtitleText) -and $subtitleText.Trim() -
   $null = $heading.Children.Add($subtitle)
 }
 $kindBadgeLabel = [string]$json.kindLabel
-if ($json.subagent -eq $true -and -not [string]::IsNullOrWhiteSpace($kindBadgeLabel)) {
+if (-not [string]::IsNullOrWhiteSpace($kindBadgeLabel)) {
   $kindBadgeBg = Blend $kindAccent $backgroundText 0.18
   $kindBadgeBorder = Blend $kindAccent $backgroundText 0.45
   $kindBadge = New-Object System.Windows.Controls.Border

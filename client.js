@@ -903,9 +903,7 @@ window.__ModuleLoader__.load({
           : ' dsh-ntf-card--rich'
       const className = `dsh-ntf-card${shape} dsh-ntf-kind-${item.kind} dsh-ntf-gradient${item.subagent === true ? ' is-subagent' : ''}${item.leaving ? ' is-leaving' : ''}`
       const kindShort = item.kind === 'error' ? t('kindShortError') : item.kind === 'attention' ? t('kindShortAttention') : t('kindShortDone')
-      const kindBadge = item.subagent === true
-        ? h('span', { className: `dsh-ntf-kind-chip kind-${item.kind}` }, kindShort)
-        : null
+      const kindBadge = h('span', { className: `dsh-ntf-kind-chip kind-${item.kind}` }, kindShort)
       const openable = item.sessionId !== ''
       const updatable = item.kind === 'update'
       const onOpen = event => {
