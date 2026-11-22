@@ -130,6 +130,10 @@ window.__ModuleLoader__.load({
         unitMin: 'мин',
         unitHour: 'ч',
         sectionTitle: 'Уведомления',
+        pageSubtitle: 'Плашки, звук и оформление в одном разделе',
+        pageChipOn: 'Плашки включены',
+        pageChipOff: 'Плашки выключены',
+        pageRefresh: 'Обновить',
         settingsLead: 'Плашка появляется, только если вы не в той сессии, где что-то произошло, или окно приложения не в фокусе. Звук звучит всегда — даже когда вы в этой сессии.',
         groupLook: 'Оформление',
         themeLabel: 'Тема плашек',
@@ -256,6 +260,10 @@ window.__ModuleLoader__.load({
         unitMin: 'm',
         unitHour: 'h',
         sectionTitle: 'Notifications',
+        pageSubtitle: 'Toasts, sound and appearance in one place',
+        pageChipOn: 'Toasts on',
+        pageChipOff: 'Toasts off',
+        pageRefresh: 'Refresh',
         settingsLead: 'A toast appears only when you are not in the chat where it happened, or the app window is not focused. Sound always plays — even while you are in that chat.',
         groupLook: 'Appearance',
         themeLabel: 'Toast theme',
@@ -424,14 +432,29 @@ window.__ModuleLoader__.load({
 @keyframes dsh-ntf-progress{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 .dsh-ntf-settings{display:flex;flex-direction:column;box-sizing:border-box;height:100%;min-height:0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .dsh-ntf-settings-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable}
-.dsh-ntf-settings-inner{box-sizing:border-box;max-width:720px;padding:4px 24px 40px;margin:0 auto}
-.dsh-ntf-lead{margin:0 0 20px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}
-.dsh-ntf-group{margin-bottom:18px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1)}
-.dsh-ntf-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px 0}
-.dsh-ntf-group-title{margin:0;padding:12px 16px 0;font-size:13px;font-weight:600;line-height:20px}
+.dsh-ntf-settings-inner{box-sizing:border-box;max-width:960px;padding:24px 28px 40px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.dsh-ntf-page-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.dsh-ntf-page-icon{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;font-size:24px;line-height:1;background:color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent);border:1px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 34%, transparent)}
+.dsh-ntf-page-text{flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dsh-ntf-page-title{margin:0;font-size:20px;font-weight:600;line-height:26px}
+.dsh-ntf-page-sub{margin:0;font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dsh-ntf-page-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
+.dsh-ntf-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;line-height:18px;background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent);color:var(--dsw-alias-label-primary);white-space:nowrap}
+.dsh-ntf-chip.is-off{background:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
+.dsh-ntf-chip-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-state-success-primary)}
+.dsh-ntf-chip.is-off .dsh-ntf-chip-dot{background:var(--dsw-alias-label-tertiary)}
+.dsh-ntf-refresh{appearance:none;height:32px;padding:0 12px;border-radius:10px;border:1px solid var(--dsw-alias-border-l4);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;font-weight:600;line-height:18px;cursor:pointer}
+.dsh-ntf-refresh:hover{background:var(--dsw-alias-bg-layer-2)}
+.dsh-ntf-refresh:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.dsh-ntf-refresh:disabled{opacity:.55;cursor:default}
+.dsh-ntf-lead{margin:0;color:var(--dsw-alias-label-secondary);font-size:12.5px;line-height:18px}
+.dsh-ntf-group{display:flex;flex-direction:column;gap:12px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;background:var(--dsw-alias-bg-layer-1);padding:16px}
+.dsh-ntf-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dsh-ntf-group-title{display:flex;align-items:center;gap:8px;margin:0;padding:0;font-size:14px;font-weight:600;line-height:20px}
+.dsh-ntf-group-title::before{content:'';flex:0 0 auto;width:3px;height:14px;border-radius:2px;background:var(--dsw-alias-brand-primary)}
 .dsh-ntf-group-head .dsh-ntf-group-title{padding:0}
-.dsh-ntf-group-body{padding:6px 0}
-.dsh-ntf-row{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:9px 16px}
+.dsh-ntf-group-body{display:flex;flex-direction:column}
+.dsh-ntf-row{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:9px 0}
 .dsh-ntf-row + .dsh-ntf-row{border-top:1px solid var(--dsw-alias-border-l1)}
 .dsh-ntf-row-text{flex:1;min-width:0}
 .dsh-ntf-row-title{font-size:13px;line-height:20px}
@@ -449,12 +472,12 @@ window.__ModuleLoader__.load({
 .dsh-ntf-seg-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
 .dsh-ntf-range{width:132px;accent-color:var(--dsw-alias-brand-primary)}
 .dsh-ntf-value{width:40px;color:var(--dsw-alias-label-secondary);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
-.dsh-ntf-previews{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px 16px}
+.dsh-ntf-previews{display:flex;flex-wrap:wrap;gap:8px;padding:0}
 .dsh-ntf-preview{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}
 .dsh-ntf-preview:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsh-ntf-preview:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 .dsh-ntf-preview-dot{width:8px;height:8px;border-radius:50%;background:var(--dsh-ntf-accent)}
-.dsh-ntf-look{padding:0 16px 16px}
+.dsh-ntf-look{padding:0}
 .dsh-ntf-look-row{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:4px 0 12px}
 .dsh-ntf-select{box-sizing:border-box;height:32px;min-width:190px;padding:0 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;cursor:pointer}
 .dsh-ntf-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
@@ -466,17 +489,18 @@ window.__ModuleLoader__.load({
 .dsh-ntf-stage .dsh-ntf-card{max-width:100%;animation:none;pointer-events:none}
 .dsh-ntf-stage .dsh-ntf-progress{animation-iteration-count:infinite}
 .dsh-ntf-stage .dsh-ntf-card{animation:none;pointer-events:none}
-.dsh-ntf-note{margin:0;padding:0 16px 14px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:17px}
-.dsh-ntf-history{list-style:none;margin:0;padding:4px 8px 8px}
+.dsh-ntf-note{margin:0;padding:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:17px}
+.dsh-ntf-history{list-style:none;margin:0;padding:0}
 .dsh-ntf-history-row{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px;text-align:left;cursor:pointer}
 .dsh-ntf-history-row:disabled{cursor:default}
 .dsh-ntf-history-row:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}
 .dsh-ntf-history-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--dsh-ntf-accent)}
 .dsh-ntf-history-text{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .dsh-ntf-history-time{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px;font-variant-numeric:tabular-nums}
-.dsh-ntf-empty{margin:0;padding:10px 16px 16px;color:var(--dsw-alias-label-secondary);font-size:12px}
+.dsh-ntf-empty{margin:0;padding:10px 0;color:var(--dsw-alias-label-secondary);font-size:12px}
 .dsh-ntf-link{appearance:none;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
 .dsh-ntf-link:hover{color:var(--dsw-alias-label-primary)}
+@media (max-width:760px){.dsh-ntf-settings-inner{padding:18px 16px 32px !important}.dsh-ntf-page-actions{margin-left:0;width:100%;justify-content:flex-start}}
 @media (prefers-reduced-motion: reduce){.dsh-ntf-card{animation:none}.dsh-ntf-progress{animation:none}}
 `
 
@@ -1164,7 +1188,20 @@ window.__ModuleLoader__.load({
       return h('section', { className: 'dsh-ntf-settings' },
         h('style', null, CSS),
         h('div', { className: 'dsh-ntf-settings-scroll' },
-          h('div', { className: 'dsh-ntf-settings-inner' },
+          h('div', {
+            className: 'dsh-ntf-settings-inner',
+            style: { width: '100%', maxWidth: 960, margin: '0 auto', padding: '24px 28px 40px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 16 },
+          },
+            h('header', { className: 'dsh-ntf-page-head' },
+              h('span', { className: 'dsh-ntf-page-icon', 'aria-hidden': 'true' }, '🔔'),
+              h('div', { className: 'dsh-ntf-page-text' },
+                h('h1', { className: 'dsh-ntf-page-title' }, t('sectionTitle')),
+                h('p', { className: 'dsh-ntf-page-sub' }, t('pageSubtitle'))),
+              h('div', { className: 'dsh-ntf-page-actions' },
+                h('span', { className: `dsh-ntf-chip${settings.notifications === true ? '' : ' is-off'}`, role: 'status' },
+                  h('span', { className: 'dsh-ntf-chip-dot' }),
+                  settings.notifications === true ? t('pageChipOn') : t('pageChipOff')),
+                h('button', { type: 'button', className: 'dsh-ntf-refresh', onClick: () => { void controller.refreshPage() } }, t('pageRefresh')))),
             h('p', { className: 'dsh-ntf-lead' }, t('settingsLead')),
             h('section', { className: 'dsh-ntf-group' },
               h('h2', { className: 'dsh-ntf-group-title' }, t('updateGroup')),
@@ -1868,6 +1905,14 @@ window.__ModuleLoader__.load({
         if (result !== null && result.ok === true) applyUpdateState(result.state)
       }
 
+      /** «Обновить» в шапке: перечитать настройки, историю и состояние обновления. */
+      async function refreshPage() {
+        await pullSettingsFromHost()
+        history.set(readHistory())
+        await refreshUpdate()
+        void syncPresentation()
+      }
+
       /** Ask the Host to compare the installed package with GitHub. */
       async function checkUpdates() {
         updateState.set({ ...updateState.get(), status: 'checking', error: '', installError: '' })
@@ -2169,6 +2214,7 @@ window.__ModuleLoader__.load({
         installUpdate,
         installUpdateFromToast,
         refreshUpdate,
+        refreshPage,
         dismiss,
         openFromToast,
         setActiveSession,
