@@ -1,4 +1,4 @@
-﻿// Проверка страницы раздела «Уведомления»: общий каркас (контейнер 960,
+// Проверка страницы раздела «Уведомления»: общий каркас (контейнер 960,
 // шапка с иконкой/чипом/«Обновить»), карточки-секции и словари ru/en.
 //
 //   node --test test/render.test.mjs
@@ -213,6 +213,16 @@ test('CSS страницы: токены DSH, карточки, шапка, ад
   assert.match(css, /\.dsh-ntf-group\{[^}]*border-radius:14px[^}]*var\(--dsw-alias-bg-layer-1\)/)
   assert.match(css, /border:1px solid var\(--dsw-alias-border-l2\)/)
   assert.match(css, /\.dsh-ntf-group-title::before/)
+  assert.match(css, /\.dsh-ntf-chip\{[^}]*display:inline-flex/, 'чип собран на inline-flex')
+  assert.match(css, /\.dsh-ntf-chip\{[^}]*height:32px/, 'чип — кнопка: height 32')
+  assert.match(css, /\.dsh-ntf-chip\{[^}]*border-radius:10px/, 'чип — не пилюля: radius 10')
+  assert.match(css, /\.dsh-ntf-chip\{[^}]*padding:0 12px/, 'padding чипа 0 12')
+  assert.match(css, /\.dsh-ntf-chip\{[^}]*border:1px solid/, 'у чипа рамка 1px')
+  assert.match(css, /\.dsh-ntf-chip\{[^}]*font-size:12\.5px/, 'шрифт чипа 12.5')
+  assert.match(css, /\.dsh-ntf-chip\{[^}]*font-weight:600/, 'шрифт чипа 600')
+  assert.match(css, /\.dsh-ntf-chip-dot\{[^}]*width:6px[^}]*height:6px/, 'точка-индикатор 6px')
+  assert.match(css, /\.dsh-ntf-chip-dot\{[^}]*background:currentColor/, 'точка наследует цвет чипа')
+  assert.doesNotMatch(css, /\.dsh-ntf-chip\{[^}]*border-radius:999/, 'чип больше не пилюля')
   assert.match(css, /:focus-visible/)
   assert.match(css, /:disabled\{opacity:\.55/)
   assert.match(css, /@media \(max-width:760px\)/)
