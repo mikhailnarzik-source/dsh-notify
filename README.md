@@ -245,3 +245,12 @@ GitHub. Если вышла новая версия, в углу появляе�
 ```powershell
 dsh plugin --profile desktop remove dsh-notify
 ```
+
+## Прокрутка страниц
+
+Уведомления: корень `.dsh-ntf-settings` (ограниченная высота, flex-колонка) и внутренний scroll-контейнер `.dsh-ntf-settings-scroll` прокручивается по вертикали, если контент выше окна. Корень не имеет фиксированной высоты в px:
+`height:100%; min-height:0` с внутренним контейнером `flex:1; min-height:0; overflow:auto; overscroll-behavior:contain`, нижний отступ контента не меньше 40 px.
+
+Проверено headless на высотах окна 700/800 px и ширинах 1280/1024/768/480 px: страница докручивается до последнего элемента (`bottomReachable`), горизонтальной прокрутки страницы нет.
+
+Тест: `node --test test/scroll.test.mjs`.

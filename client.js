@@ -439,8 +439,8 @@ window.__ModuleLoader__.load({
 @keyframes dsh-ntf-enter{from{opacity:0;transform:translateY(var(--dsh-ntf-shift)) scale(.985)}to{opacity:1;transform:none}}
 @keyframes dsh-ntf-leave{to{opacity:0;transform:translateY(-4px) scale(.99)}}
 @keyframes dsh-ntf-progress{from{transform:scaleX(1)}to{transform:scaleX(0)}}
-.dsh-ntf-settings{display:flex;flex-direction:column;box-sizing:border-box;height:100%;min-height:0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
-.dsh-ntf-settings-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable}
+.dsh-ntf-settings{display:flex;flex-direction:column;box-sizing:border-box;width:100%;max-height:100%;height:100%;min-height:0;overflow:hidden;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.dsh-ntf-settings-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
 .dsh-ntf-settings-inner{box-sizing:border-box;max-width:960px;padding:24px 28px 40px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 .dsh-ntf-page-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .dsh-ntf-page-icon{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;font-size:24px;line-height:1;background:color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent);border:1px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 34%, transparent)}
