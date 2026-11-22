@@ -29,6 +29,15 @@ window.__ModuleLoader__.load({
     const HISTORY_LIMIT = 10
     const MAX_VISIBLE = 4
 
+    // Собственная панель плагина в левой панели: ключ main-панели и id строки
+    // обязаны совпадать, иначе клик не найдёт страницу. id в состоянии
+    // видимости dsh-polish — короткий ('notify'), без префикса 'plugin-'.
+    const PANEL_ID = 'plugin-notify'
+    const PANEL_SHORT_ID = 'notify'
+    const PANEL_ORDER = 23
+    const PANEL_VISIBILITY_KEY = 'dsh-polish:panel-visibility'
+    const PANELS_CHANGED_EVENT = 'dsh-polish:panels-changed'
+
     const VARIANTS = ['compact', 'card', 'banner']
     const POSITIONS = ['bottom-right', 'bottom-left', 'top-right', 'top-left']
     const DURATIONS = [4000, 6000, 10000, 0]
@@ -526,6 +535,46 @@ window.__ModuleLoader__.load({
       return text.replace(/\{(\w+)\}/gu, (match, name) => (params[name] === undefined ? match : String(params[name])))
     }
 
+    /* --- Видимость панели в левой панели (общий ключ dsh-polish) ---------- */
+
+    /** localStorage панелей; null, если хранилище недоступно (тесты, приватный режим). */
+    function panelStorage() {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) return window.localStorage
+        if (typeof localStorage !== 'undefined' && localStorage) return localStorage
+      } catch {
+        // доступ к хранилищу запрещён — работаем на состоянии по умолчанию
+      }
+      return null
+    }
+
+    /**
+     * Состояние панелей из общего ключа dsh-polish:
+     * `{ visible: string[], pinned: string[] }`, id — короткие ('notify').
+     * Пока пользователь ничего не менял, ключа нет: состояние по умолчанию —
+     * как у dsh-polish, панель видна и закреплена. Битое значение — то же самое.
+     */
+    function readPanelState() {
+      const fallback = { visible: [PANEL_SHORT_ID], pinned: [PANEL_SHORT_ID] }
+      const storage = panelStorage()
+      if (storage === null) return fallback
+      try {
+        const raw = storage.getItem(PANEL_VISIBILITY_KEY)
+        if (raw === null || raw === '') return fallback
+        const parsed = JSON.parse(raw)
+        if (parsed === null || typeof parsed !== 'object') return fallback
+        const ids = (value) => (Array.isArray(value) ? value.filter((id) => typeof id === 'string') : [])
+        return { visible: ids(parsed.visible), pinned: ids(parsed.pinned) }
+      } catch {
+        return fallback
+      }
+    }
+
+    /** Закреплена ли панель уведомлений: только закреплённые строки видны в левой панели. */
+    function isPanelPinned() {
+      return readPanelState().pinned.includes(PANEL_SHORT_ID)
+    }
+
     /** A minimal observable value React can subscribe to. */
     function createStore(initial) {
       let value = initial
@@ -903,6 +952,24 @@ window.__ModuleLoader__.load({
           strokeWidth: 1.4,
           strokeLinecap: 'round',
         }))
+    }
+
+    /** Эмодзи-иконка строки в левой панели (size задаёт хост: 16 или 18). */
+    function NotifyPanelIcon(props) {
+      const requested = Number(props?.size)
+      const size = Number.isFinite(requested) && requested > 0 ? requested : 16
+      return h('span', {
+        'aria-hidden': true,
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: size,
+          height: size,
+          fontSize: Math.round(size * 0.95),
+          lineHeight: 1,
+        },
+      }, '🔔')
     }
 
     /** One toast in the shape the settings chose. */
@@ -2359,6 +2426,65 @@ window.__ModuleLoader__.load({
         }, function NotifySettingsIcon(props) {
           return h(Icon, { kind: 'attention', size: Number(props.size) || 16 })
         }))
+
+        // Собственная main-панель: клик в левой панели показывает только
+        // настройки уведомлений — тот же компонент, что и в «Настройках».
+        // Никаких блоков плагин-менеджера («Описание», «Источник», «Версия»).
+        try {
+          ctx.slots.inject('main', () => ctx.slots.register({
+            name: 'main',
+            key: PANEL_ID,
+            locale: NS,
+          }, function NotifyPanelPage(props) {
+            return h(SettingsPage, { ...props, controller })
+          }))
+        } catch (error) {
+          console.error('[dsh-notify] панель недоступна:', error)
+        }
+
+        // Строка левой панели: main-панель живёт всегда, а строка — только пока
+        // панель закреплена в общем состоянии dsh-polish. Регистрация
+        // динамическая, снятие — через disposer по событию.
+        let disposePanelRow = null
+        const unregisterPanelRow = () => {
+          const dispose = disposePanelRow
+          disposePanelRow = null
+          if (typeof dispose !== 'function') return
+          try {
+            dispose()
+          } catch (error) {
+            console.error('[dsh-notify] не удалось снять строку левой панели:', error)
+          }
+        }
+        const registerPanelRow = () => {
+          if (disposePanelRow !== null) return
+          try {
+            const dispose = ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+              name: 'sidebar.panellist',
+              id: PANEL_ID,
+              order: PANEL_ORDER,
+              label: () => t('sectionTitle'),
+              locale: NS,
+            }, NotifyPanelIcon))
+            disposePanelRow = typeof dispose === 'function' ? dispose : () => {}
+          } catch (error) {
+            // Хост без слота строк оставляет панель доступной через «Плагины».
+            console.error('[dsh-notify] строка левой панели недоступна:', error)
+          }
+        }
+        const syncPanelRow = () => {
+          if (isPanelPinned()) registerPanelRow()
+          else unregisterPanelRow()
+        }
+        syncPanelRow()
+
+        // dsh-polish шлёт событие после каждого изменения видимости/закрепления.
+        const onPanelsChanged = () => syncPanelRow()
+        window.addEventListener(PANELS_CHANGED_EVENT, onPanelsChanged)
+        ctx.effect(() => () => {
+          window.removeEventListener(PANELS_CHANGED_EVENT, onPanelsChanged)
+          unregisterPanelRow()
+        }, 'notify: panel row')
       },
     }
   },
