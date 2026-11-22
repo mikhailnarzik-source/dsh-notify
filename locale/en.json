@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Task notifications",
-    "description": "Toast notifications for a finished task, a confirmation request and a failure, each with its own sound; notifications and sound switch separately.",
+    "description": "Shows pop-up cards (toasts) about what happens in Harness: a task finished, the agent needs your confirmation, or something failed. Each case has its own colour and sound, and toasts and sound can be switched off separately. Settings live under Settings → Notifications, marked with a bell icon. In the Plugins list this plugin also has a bell icon.",
     "detail": "docs/DETAIL.md"
   }
 }
