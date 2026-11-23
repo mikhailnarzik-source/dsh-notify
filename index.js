@@ -51,6 +51,13 @@ function settingsFile() {
   return join(base, 'dsh-notify', 'settings.json')
 }
 
+/** Файл счётчика завершённых субагентов: переживает перезапуск хоста. */
+function stateFile() {
+  const home = process.env.DSH_HOME
+  const base = typeof home === 'string' && home !== '' ? home : join(homedir(), '.dsh')
+  return join(base, 'dsh-notify', 'state.json')
+}
+
 export const CONTROL_PATH = '/api/dsh-notify/control'
 
 /** This installed package, the directory a self-update replaces files in. */
@@ -196,6 +203,35 @@ export function apply(ctx) {
   const waiters = new Set()
   /** Session id → start of its open turn. */
   const turnStarts = new Map()
+  /** Сколько субагентов завершили ход за всё время; счётчик лежит на диске. */
+  let completedSubagents = 0
+  try {
+    const stored = JSON.parse(readFileSync(stateFile(), 'utf8'))
+    if (stored !== null && typeof stored === 'object' && Number.isFinite(stored.completedSubagents)) {
+      completedSubagents = Math.max(0, Math.floor(stored.completedSubagents))
+    }
+  } catch {
+    // файла ещё нет — счётчик начинается с нуля
+  }
+
+  /** Сохранить счётчик завершённых субагентов; сбой записи не важен. */
+  function saveSubagentState() {
+    try {
+      mkdirSync(dirname(stateFile()), { recursive: true })
+      writeFileSync(stateFile(), JSON.stringify({ completedSubagents }) + '\n', 'utf8')
+    } catch {
+      // счётчик необязателен
+    }
+  }
+
+  /** Текущее состояние субагентов: сколько работают, сколько завершили. */
+  function subagentSnapshot() {
+    let active = 0
+    for (const entry of turnStarts.values()) {
+      if (entry.subagent === true) active += 1
+    }
+    return { active, completed: completedSubagents }
+  }
   /** Session id → cached title and the moment it was read. */
   const titleCache = new Map()
   /** Session id → moment the last lost turn error was published. */
@@ -259,12 +295,20 @@ let nativeSpawnTimer = null
       nativeFallback: item.nativeFallback === true,
       latestVersion: typeof item.latestVersion === 'string' ? item.latestVersion : '',
       currentVersion: typeof item.currentVersion === 'string' ? item.currentVersion : '',
+      subagent: item.subagent === true,
+      agentTitle: typeof item.agentTitle === 'string' ? item.agentTitle : '',
+      parentTitle: typeof item.parentTitle === 'string' ? item.parentTitle : '',
+      parentSessionId: typeof item.parentSessionId === 'string' ? item.parentSessionId : '',
+      active: Number.isFinite(item.active) ? Math.max(0, Math.floor(item.active)) : 0,
+      completed: Number.isFinite(item.completed) ? Math.max(0, Math.floor(item.completed)) : 0,
     }
     if (item.live === true && record.kind === 'attention') {
       liveAttentions.push({ sessionId: record.sessionId, reason: record.reason, at: record.at })
       if (liveAttentions.length > 100) liveAttentions.shift()
     }
-    void appendLog(record.kind ?? 'notice', true, [record.sessionTitle, record.tool, record.reason].filter(Boolean).join(' · ').slice(0, 120) || 'событие')
+    if (item.silent !== true) {
+      void appendLog(record.kind ?? 'notice', true, [record.sessionTitle, record.tool, record.reason].filter(Boolean).join(' · ').slice(0, 120) || 'событие')
+    }
     feed.push(record)
     if (feed.length > MAX_ITEMS) feed.splice(0, feed.length - MAX_ITEMS)
     const parked = [...waiters]
@@ -541,8 +585,9 @@ let nativeSpawnTimer = null
     const header = session.header
     if (header === undefined || header === null) return
     const isAgent = header.origin === 'subagent'
-    // Ожидание подтверждения от субагента не показываем, а завершение — да.
-    if (isAgent && event.type !== 'turn/end') return
+    // Ожидания и инструменты субагента не показываем, а завершение — да;
+    // turn/start нужен для счётчика «субагенты: N работают».
+    if (isAgent && event.type !== 'turn/end' && event.type !== 'turn/start') return
     const sessionId = header.id
     if (typeof sessionId !== 'string') return
     // The person is asked at the moment the audit event (or the ask_user_question
@@ -588,11 +633,13 @@ let nativeSpawnTimer = null
     if (event.type === 'turn/start') {
       const data = event.data
       const turn = data !== null && typeof data === 'object' ? data.turn : undefined
-      turnStarts.set(sessionId, { at: Number(event.time) || Date.now(), turn })
+      turnStarts.set(sessionId, { at: Number(event.time) || Date.now(), turn, subagent: isAgent })
       if (turnStarts.size > 200) {
         const oldest = turnStarts.keys().next()
         if (!oldest.done) turnStarts.delete(oldest.value)
       }
+      // Индикатор «субагенты: N работают» обновляется сразу.
+      if (isAgent) publish({ kind: 'subagents', silent: true, ...subagentSnapshot() })
       return
     }
     if (event.type !== 'turn/end') return
@@ -601,6 +648,11 @@ let nativeSpawnTimer = null
     const kind = reason !== null && reason !== undefined && typeof reason.kind === 'string' ? reason.kind : 'completed'
     const started = turnStarts.get(sessionId)
     turnStarts.delete(sessionId)
+    if (isAgent) {
+      completedSubagents += 1
+      saveSubagentState()
+      publish({ kind: 'subagents', silent: true, ...subagentSnapshot() })
+    }
     const durationMs = started !== undefined && Number.isFinite(event.time)
       ? Math.max(0, Number(event.time) - started.at)
       : 0
@@ -1145,22 +1197,23 @@ let nativeSpawnTimer = null
         cursor: sequence,
         reset: false,
         epoch,
+        subagents: subagentSnapshot(),
       })
     }
     const cursor = Number(rawCursor)
     if (!Number.isFinite(cursor) || cursor < 0 || cursor > sequence) {
-      return jsonResponse({ items: [], cursor: sequence, reset: true, epoch })
+      return jsonResponse({ items: [], cursor: sequence, reset: true, epoch, subagents: subagentSnapshot() })
     }
     const oldest = feed.length > 0 ? feed[0].id : sequence + 1
     if (cursor > 0 && cursor < oldest - 1) {
-      return jsonResponse({ items: [], cursor: sequence, reset: true, epoch })
+      return jsonResponse({ items: [], cursor: sequence, reset: true, epoch, subagents: subagentSnapshot() })
     }
     let batch = collect(cursor)
     if (batch.items.length === 0 && url.searchParams.get('hold') !== '0') {
       await waitForChange(request.signal)
       batch = collect(cursor)
     }
-    return jsonResponse(batch)
+    return jsonResponse({ ...batch, subagents: subagentSnapshot() })
   }
 
   // Настройки живут в профиле, а не в localStorage: порт DSH меняется при

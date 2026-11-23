@@ -95,6 +95,7 @@ window.__ModuleLoader__.load({
       notifications: true,
       sound: true,
       gameMode: false,
+      subagentInChat: false,
       theme: 'system',
       variant: 'card',
       position: 'bottom-right',
@@ -171,6 +172,12 @@ window.__ModuleLoader__.load({
         groupShow: 'Показ уведомлений',
         notifications: 'Показывать уведомления',
         notificationsHint: 'Плашки в углу окна. Звук настраивается отдельно.',
+        subagentInChat: 'Тосты о субагентах в открытом чате',
+        subagentInChatHint: 'По умолчанию завершения субагентов не перекрывают чат, в котором вы работаете; включите, чтобы видеть синие плашки и здесь.',
+        subagentChip: 'субагенты: {active} {working}, {completed} {done}',
+        subagentWorkingOne: 'работает',
+        subagentWorkingMany: 'работают',
+        subagentDone: 'завершено',
         variant: 'Форма плашки',
         variantHint: 'Компактная строка, карточка с подробностями или широкая полоса.',
         variantCompact: 'Строка',
@@ -301,6 +308,12 @@ window.__ModuleLoader__.load({
         groupShow: 'Notifications',
         notifications: 'Show notifications',
         notificationsHint: 'Toasts in a window corner. Sound is configured separately.',
+        subagentInChat: 'Subagent toasts in the open chat',
+        subagentInChatHint: 'By default subagent completions do not cover the chat you are working in; turn this on to see the blue toasts there too.',
+        subagentChip: 'subagents: {active} {working}, {completed} {done}',
+        subagentWorkingOne: 'is working',
+        subagentWorkingMany: 'are working',
+        subagentDone: 'finished',
         variant: 'Toast shape',
         variantHint: 'A compact line, a card with detail, or a wide strip.',
         variantCompact: 'Line',
@@ -451,6 +464,9 @@ window.__ModuleLoader__.load({
 .dsh-ntf-chip{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border:1px solid color-mix(in srgb, var(--dsw-alias-state-success-primary) 55%, transparent);border-radius:10px;background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent);color:var(--dsw-alias-state-success-primary);font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;flex:0 0 auto;min-width:0;max-width:100%}
 .dsh-ntf-chip.is-off{border-color:var(--dsw-alias-border-l2);background:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent);color:var(--dsw-alias-label-secondary)}
 .dsh-ntf-chip-dot{flex:0 0 auto;width:6px;height:6px;border-radius:50%;background:currentColor}
+.dsh-ntf-subagents{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border:1px solid color-mix(in srgb, #5AA7FF 55%, transparent);border-radius:10px;background:color-mix(in srgb, #5AA7FF 16%, transparent);color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600;line-height:1;white-space:nowrap;pointer-events:auto;box-shadow:0 8px 20px -10px color-mix(in srgb, var(--dsw-alias-label-primary) 45%, transparent)}
+.dsh-ntf-subagents-dot{flex:0 0 auto;width:6px;height:6px;border-radius:50%;background:#5AA7FF}
+.dsh-ntf-subagents.is-idle .dsh-ntf-subagents-dot{background:var(--dsw-alias-label-secondary)}
 .dsh-ntf-refresh{appearance:none;height:32px;padding:0 12px;border-radius:10px;border:1px solid var(--dsw-alias-border-l4);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;font-weight:600;line-height:18px;cursor:pointer}
 .dsh-ntf-refresh:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsh-ntf-refresh:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
@@ -679,6 +695,7 @@ window.__ModuleLoader__.load({
         if (typeof parsed.sound === 'boolean') next.sound = parsed.sound
         if (typeof parsed.theme === 'string') next.theme = pick(parsed.theme, THEMES, DEFAULTS.theme)
         if (typeof parsed.gameMode === 'boolean') next.gameMode = parsed.gameMode
+        if (typeof parsed.subagentInChat === 'boolean') next.subagentInChat = parsed.subagentInChat
         if (typeof parsed.system === 'boolean') next.system = parsed.system
         if (typeof parsed.variant === 'string') next.variant = pick(parsed.variant, VARIANTS, DEFAULTS.variant)
         if (typeof parsed.textSize === 'number') next.textSize = pick(parsed.textSize, TEXT_SIZES, DEFAULTS.textSize)
@@ -1134,18 +1151,34 @@ window.__ModuleLoader__.load({
       useStore(controller.localeTick)
       const settings = useStore(controller.settings)
       const items = useStore(controller.toasts)
+      const subagents = useStore(controller.subagentStats)
       const variant = pick(settings.variant, VARIANTS, DEFAULTS.variant)
       const position = pick(settings.position, POSITIONS, DEFAULTS.position)
       const theme = resolvedTheme(settings)
       const textSize = pick(settings.textSize, TEXT_SIZES, DEFAULTS.textSize)
       const fontFamily = pick(settings.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)
       const fontStyle = pick(settings.fontStyle, FONT_STYLES, DEFAULTS.fontStyle)
+      // Постоянный индикатор субагентов: показывается, пока есть что считать.
+      const subagentChip = subagents.active > 0 || subagents.completed > 0
+        ? h('div', {
+            className: `dsh-ntf-subagents${subagents.active > 0 ? '' : ' is-idle'}`,
+            role: 'status',
+          },
+          h('span', { className: 'dsh-ntf-subagents-dot', 'aria-hidden': 'true' }),
+          t('subagentChip', {
+            active: String(subagents.active),
+            working: subagents.active === 1 ? t('subagentWorkingOne') : t('subagentWorkingMany'),
+            completed: String(subagents.completed),
+            done: t('subagentDone'),
+          }))
+        : null
       return h('div', {
         className: `dsh-ntf-layer dsh-ntf-pos-${position}`,
         'aria-live': 'polite',
         'aria-atomic': 'false',
       },
       h('style', null, CSS),
+      subagentChip,
       items.map(item => h(ToastCard, {
         key: item.uid,
         item,
@@ -1231,6 +1264,7 @@ window.__ModuleLoader__.load({
       const permission = useStore(controller.permission)
       const nativeAvailable = useStore(controller.nativeState)
       const update = useStore(controller.updateState)
+      const subagents = useStore(controller.subagentStats)
       const updateBusy = update.status === 'checking' || update.status === 'installing'
       React.useEffect(() => {
         // The page may have been open for hours; read the current status.
@@ -1267,6 +1301,16 @@ window.__ModuleLoader__.load({
                 h('span', { className: `dsh-ntf-chip${settings.notifications === true ? '' : ' is-off'}`, role: 'status' },
                   h('span', { className: 'dsh-ntf-chip-dot' }),
                   settings.notifications === true ? t('pageChipOn') : t('pageChipOff')),
+                subagents.active > 0 || subagents.completed > 0
+                  ? h('span', { className: `dsh-ntf-subagents${subagents.active > 0 ? '' : ' is-idle'}`, role: 'status' },
+                      h('span', { className: 'dsh-ntf-subagents-dot', 'aria-hidden': 'true' }),
+                      t('subagentChip', {
+                        active: String(subagents.active),
+                        working: subagents.active === 1 ? t('subagentWorkingOne') : t('subagentWorkingMany'),
+                        completed: String(subagents.completed),
+                        done: t('subagentDone'),
+                      }))
+                  : null,
                 h('button', { type: 'button', className: 'dsh-ntf-refresh', onClick: () => { void controller.refreshPage() } }, t('pageRefresh')))),
             h('p', { className: 'dsh-ntf-lead' }, t('settingsLead')),
             h('section', { className: 'dsh-ntf-group' },
@@ -1405,6 +1449,15 @@ window.__ModuleLoader__.load({
                   checked: settings.notifications,
                   label: t('notifications'),
                   onChange: value => controller.update({ notifications: value }),
+                })),
+
+                h(Row, {
+                  title: t('subagentInChat'),
+                  description: t('subagentInChatHint'),
+                }, h(Switch, {
+                  checked: settings.subagentInChat === true,
+                  label: t('subagentInChat'),
+                  onChange: value => controller.update({ subagentInChat: value }),
                 })),
 
                 h(Row, { title: t('position'), description: t('positionHint') },
@@ -1552,6 +1605,8 @@ window.__ModuleLoader__.load({
       })
       /** Releases already offered as a toast in this page. */
       const offeredUpdates = new Set()
+      /** Счётчик субагентов от хоста: сколько работают и сколько завершили. */
+      const subagentStats = createStore({ active: 0, completed: 0 })
       const localeTickStore = createStore(0)
       const permissionStore = createStore(
         typeof Notification === 'function' ? Notification.permission : 'unsupported',
@@ -2058,6 +2113,16 @@ window.__ModuleLoader__.load({
 
       function ingest(item, options = {}) {
         if (disposed || item === null || typeof item !== 'object') return
+        // Хост сообщил новое состояние счётчика субагентов — это не плашка.
+        if (item.kind === 'subagents') {
+          subagentStats.set({
+            active: Number.isFinite(item.active) ? Math.max(0, Math.floor(item.active)) : 0,
+            completed: Number.isFinite(item.completed)
+              ? Math.max(0, Math.floor(item.completed))
+              : Math.max(0, subagentStats.get().completed),
+          })
+          return
+        }
         // The companion reported that "open" was pressed on a native card.
         if (item.kind === 'action') {
           if (item.action === 'mute') {
@@ -2128,8 +2193,15 @@ window.__ModuleLoader__.load({
         // answer they are watching, so only the sound reports it.
         const watchingThisChat = windowActive && record.sessionId !== '' && activeSession.get() === record.sessionId
         if (config.sound === true && Date.now() >= (config.mutedUntil ?? 0)) audio.play(kind, config.volume / 100)
-        const showToast = force === true
-          || (config.notifications === true && config.gameMode !== true)
+        // Завершение субагента: по умолчанию плашку в открытом родительском чате
+        // не показываем — работа и так видна в теле сессии, звук остаётся.
+        // Настройка «Тосты о субагентах в открытом чате» снимает подавление.
+        const inParentChat = windowActive
+          && record.subagent === true
+          && record.parentSessionId !== ''
+          && activeSession.get() === record.parentSessionId
+        const showToast = !(inParentChat && config.subagentInChat !== true)
+          && (force === true || (config.notifications === true && config.gameMode !== true))
         // While the app window is not the one in front, a Windows companion card
         // floats above every other application; the in-app toast would be hidden.
         const useNative = showToast
@@ -2241,6 +2313,15 @@ window.__ModuleLoader__.load({
               epoch = payloadEpoch
             }
             if (typeof payload.cursor === 'number' && Number.isFinite(payload.cursor)) cursor = payload.cursor
+            // Каждый ответ ленты несёт актуальный счётчик субагентов.
+            if (payload.subagents !== null && typeof payload.subagents === 'object') {
+              subagentStats.set({
+                active: Number.isFinite(payload.subagents.active) ? Math.max(0, Math.floor(payload.subagents.active)) : 0,
+                completed: Number.isFinite(payload.subagents.completed)
+                  ? Math.max(0, Math.floor(payload.subagents.completed))
+                  : Math.max(0, subagentStats.get().completed),
+              })
+            }
             // A restarted Host resets the sequence; re-open with a baseline so the
             // still-waiting interactions it reports are delivered again.
             if (payload.reset === true) cursor = null
@@ -2271,6 +2352,7 @@ window.__ModuleLoader__.load({
         settings,
         toasts,
         history,
+        subagentStats,
         localeTick: localeTickStore,
         permission: permissionStore,
         nativeState,
