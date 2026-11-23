@@ -22,7 +22,7 @@ const PACKAGE = JSON.parse(await readFile(new URL('../package.json', import.meta
 
 const PLUGIN = "dsh-notify"
 const PACKAGE_NAME = PACKAGE.name
-const VERSION = "1.2.63"
+const VERSION = "1.2.64"
 const ROOT_SELECTOR = ".dsh-ntf-settings"
 const ARCH = "inner"
 const INNER_SELECTOR = ".dsh-ntf-settings-scroll"
