@@ -223,10 +223,11 @@ window.__ModuleLoader__.load({
         clear: 'Очистить',
         previewSession: 'Пример задачи',
         previewErrorText: 'Не удалось выполнить запрос к модели.',
-        updateTitle: 'Доступно обновление',
-        updateBody: 'Вышла версия dsh-notify {version}.',
+        updateTitle: 'доступно обновление',
+        updateBody: 'Вышла версия плагина «Уведомления» {version}.',
         updateNow: 'Обновить',
-        updateDoneTitle: 'Обновление установлено',
+        updateDoneTitle: 'обновление установлено',
+        updatePluginWord: 'плагин',
         updateGroup: 'Обновления',
         updateCurrent: 'Установленная версия',
         updateStatus: 'Проверка обновлений',
@@ -359,10 +360,11 @@ window.__ModuleLoader__.load({
         clear: 'Clear',
         previewSession: 'Example task',
         previewErrorText: 'The model request failed.',
-        updateTitle: 'Update available',
-        updateBody: 'dsh-notify {version} has been released.',
+        updateTitle: 'update available',
+        updateBody: 'A new version of the «Notifications» plugin is out: {version}.',
         updateNow: 'Update',
-        updateDoneTitle: 'Update installed',
+        updateDoneTitle: 'update installed',
+        updatePluginWord: 'plugin',
         updateGroup: 'Updates',
         updateCurrent: 'Installed version',
         updateStatus: 'Update check',
@@ -880,15 +882,21 @@ window.__ModuleLoader__.load({
       if (record.kind === 'update') {
         const latest = typeof record.latestVersion === 'string' ? record.latestVersion : ''
         const installed = typeof record.currentVersion === 'string' ? record.currentVersion : ''
+        // Плашка называет плагин: иначе «Доступно обновление» не говорит, чьё оно.
+        const versions = installed !== '' && latest !== '' ? `${installed} → ${latest}` : latest
         return {
-          title: t('updateTitle'),
-          meta: installed !== '' && latest !== '' ? `${installed} → ${latest}` : latest,
+          title: `${t('sectionTitle')}: ${t('updateTitle')}`,
+          meta: `${t('updatePluginWord')} «${t('sectionTitle')}»: ${versions}`,
           body: t('updateBody', { version: latest }),
         }
       }
       if (record.kind === 'update-done') {
         const version = typeof record.latestVersion === 'string' ? record.latestVersion : ''
-        return { title: t('updateDoneTitle'), meta: version, body: t('updateRestart') }
+        return {
+          title: `${t('sectionTitle')}: ${t('updateDoneTitle')}`,
+          meta: `${t('updatePluginWord')} «${t('sectionTitle')}»: ${version}`,
+          body: t('updateRestart'),
+        }
       }
       if (record.subagent === true) {
         const agent = typeof record.agentTitle === 'string' && record.agentTitle !== '' ? record.agentTitle : t('subagentFallback')
@@ -1189,7 +1197,7 @@ window.__ModuleLoader__.load({
         fontStyle,
         onClose: controller.dismiss,
         onMute: controller.muteSound,
-        muted: Date.now() < (settings.get().mutedUntil ?? 0),
+        muted: Date.now() < (settings.mutedUntil ?? 0),
         onOpen: controller.openFromToast,
         onUpdate: controller.installUpdateFromToast,
       })))

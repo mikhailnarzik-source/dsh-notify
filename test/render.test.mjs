@@ -66,7 +66,7 @@ function find(node, predicate) {
 }
 
 /** Загрузить browser-часть плагина против заданных сохранённых настроек. */
-function boot(storedSettings) {
+function boot(storedSettings, options = {}) {
   let capturedModule
   const dictionaries = []
   const window = {
@@ -128,13 +128,23 @@ function boot(storedSettings) {
       },
     },
   })
-  // Фоновая лента и таймеры не нужны в тесте — гасим контроллер сразу.
+  // Фоновая лента и таймеры не нужны в тесте — гасим контроллер сразу,
+  // если тесту не нужен живой контроллер (например, для плашки обновления).
+  let controller
   try {
-    window.__dshNotifyController?.dispose?.()
+    controller = window.__dshNotifyController
   } catch {
-    // контроллер не выставлен — нечего гасить
+    controller = undefined
   }
-  return { registered, dictionaries }
+  if (options.keepController !== true) {
+    try {
+      controller?.dispose?.()
+    } catch {
+      // контроллер не выставлен — нечего гасить
+    }
+    controller = undefined
+  }
+  return { registered, dictionaries, controller }
 }
 
 function renderPage(storedSettings) {
@@ -248,4 +258,49 @@ test('controller: «Обновить» перечитывает настройк
   assert.match(sourceText, /await pullSettingsFromHost\(\)/)
   assert.match(sourceText, /history\.set\(readHistory\(\)\)/)
   assert.match(sourceText, /refreshPage,/)
+})
+
+test('плашка обновления называет плагин, показывает версии и не теряет кнопки', () => {
+  const { registered, dictionaries, controller } = boot(undefined, { keepController: true })
+  assert.ok(controller !== undefined, 'живой контроллер для плашки')
+
+  // Русская плашка: «Уведомления: доступно обновление», версии — плагин «Уведомления».
+  const ru = dictionaries.find((entry) => entry.language === 'ru').dictionary
+  assert.equal(`${ru.sectionTitle}: ${ru.updateTitle}`, 'Уведомления: доступно обновление')
+  assert.match(`${ru.updatePluginWord} «${ru.sectionTitle}»`, /плагин «Уведомления»/)
+
+  try {
+    controller.ingest({ kind: 'update', latestVersion: '1.2.66', currentVersion: '1.2.65' })
+    const overlay = registered.find((entry) => entry.options.name === 'shell.overlay')
+    assert.ok(overlay !== undefined, 'слой плашек зарегистрирован')
+    const tree = render(createElement(overlay.component, {}))
+
+    // Заголовок: название плагина + «доступно обновление» (в тесте — английский словарь).
+    const title = find(tree, (element) => element.props.className === 'dsh-ntf-title')[0]
+    assert.ok(title !== undefined, 'заголовок плашки')
+    assert.equal(texts(title).join(''), 'Notifications: update available')
+    assert.match(texts(title).join(''), /Notifications/, 'название плагина в заголовке')
+
+    // Строка версий: название плагина и «установлена → новая».
+    const meta = find(tree, (element) => element.props.className === 'dsh-ntf-meta')[0]
+    assert.ok(meta !== undefined, 'строка версий')
+    assert.equal(texts(meta).join(''), 'plugin «Notifications»: 1.2.65 → 1.2.66')
+
+    // Текст: тоже называет плагин, чтобы было понятно без заголовка.
+    const body = find(tree, (element) => element.props.className === 'dsh-ntf-body')[0]
+    assert.ok(body !== undefined, 'текст плашки')
+    assert.match(texts(body).join(''), /«Notifications» plugin/)
+    assert.match(texts(body).join(''), /1\.2\.66/)
+
+    // Кнопки «Обновить» и × на месте, × действительно закрывает плашку.
+    const updateButton = find(tree, (element) => element.type === 'button' && texts(element).join('') === 'Update')[0]
+    assert.ok(updateButton !== undefined, 'кнопка «Обновить»')
+    assert.equal(typeof updateButton.props.onClick, 'function', 'обновление подключено')
+    const close = find(tree, (element) => element.type === 'button' && element.props['aria-label'] === 'Dismiss')[0]
+    assert.ok(close !== undefined, 'кнопка ×')
+    close.props.onClick({ stopPropagation: () => {} })
+    assert.equal(controller.toasts.get()[0]?.leaving, true, '× помечает плашку закрытой')
+  } finally {
+    controller.dispose()
+  }
 })
