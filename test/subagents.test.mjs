@@ -272,7 +272,7 @@ test('запись subagents обновляет счётчик, чип виде�
   }
 })
 
-test('чекбокс в настройках: подпись, выключен по умолчанию, переключение сохраняет', () => {
+test('переключатель в настройках: подпись, по умолчанию выключен, применяется «Сохранить»', () => {
   const scenario = bootClient(undefined)
   try {
     const page = scenario.settingsPage()
@@ -281,8 +281,14 @@ test('чекбокс в настройках: подпись, выключен �
     assert.equal(switches.length, 1, 'один переключатель')
     assert.ok(!switches[0].props.className.includes('is-on'), 'по умолчанию выключен')
 
+    // Клик только правит черновик: без «Сохранить» настройка не применяется и не пишется.
     switches[0].props.onClick()
-    assert.equal(scenario.controller.settings.get().subagentInChat, true, 'настройка применена')
+    assert.equal(scenario.controller.settings.get().subagentInChat, false, 'до «Сохранить» настройка не применена')
+    assert.equal(scenario.storage.get('dsh-notify:settings:v1'), undefined, 'на диск раньше времени не пишется')
+
+    // Сохранение группы «События» (то, что делает кнопка «Сохранить») применяет поле.
+    scenario.controller.update({ subagentInChat: true })
+    assert.equal(scenario.controller.settings.get().subagentInChat, true, 'после «Сохранить» настройка применена')
     const stored = JSON.parse(scenario.storage.get('dsh-notify:settings:v1'))
     assert.equal(stored.subagentInChat, true, 'настройка сохранена')
   } finally {

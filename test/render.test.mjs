@@ -193,12 +193,12 @@ test('чип меняется на «выключено», когда плашк
   assert.equal(texts(chip).join(''), 'Toasts off')
 })
 
-test('карточки-секции: все группы настроек сохранены', () => {
+test('карточки-секции: группы «Оформление», «Поведение», «События» и «Дополнительно»', () => {
   const page = renderPage(undefined)
   const cards = find(page, (element) => element.type === 'section' && element.props.className === 'dsh-ntf-group')
-  assert.equal(cards.length, 7, 'семь карточек-секций')
+  assert.equal(cards.length, 6, 'три группы настроек и три карточки внутри «Дополнительно»')
   const titles = find(page, (element) => element.props.className === 'dsh-ntf-group-title').map((element) => texts(element).join(''))
-  for (const key of ['Updates', 'Appearance', 'Notifications', 'Sound', 'System notifications', 'Preview', 'Recent']) {
+  for (const key of ['Appearance', 'Behavior', 'Events', 'Updates', 'Preview', 'Recent']) {
     assert.ok(titles.includes(key), `заголовок карточки ${key}`)
   }
   // Функциональность: переключатели, поля, кнопки на месте.
@@ -212,6 +212,80 @@ test('карточки-секции: все группы настроек сох
   assert.equal(ranges.length, 1, 'ползунок громкости')
   const selects = find(page, (element) => String(element.props.className ?? '').startsWith('dsh-ntf-select'))
   assert.equal(selects.length, 2, 'тема и шрифт')
+})
+
+test('аккордеоны: «Дополнительно» и «Опасная зона» свёрнуты, опасная — внизу', () => {
+  const page = renderPage(undefined)
+  const accordions = find(page, (element) => element.type === 'section' && /dsh-ntf-acc/.test(String(element.props.className ?? '')))
+  assert.equal(accordions.length, 2, 'два аккордеона')
+  const toggles = find(page, (element) => String(element.props.className ?? '').startsWith('dsh-ntf-acc-toggle'))
+  assert.equal(toggles.length, 2)
+  for (const toggle of toggles) assert.equal(toggle.props['aria-expanded'], 'false', 'по умолчанию свёрнуто')
+  const bodies = find(page, (element) => String(element.props.className ?? '').startsWith('dsh-ntf-acc-body'))
+  assert.equal(bodies.length, 2)
+  for (const body of bodies) assert.equal(body.props.hidden, true, 'тело скрыто атрибутом hidden')
+  const danger = accordions.find((element) => element.props.className.includes('is-danger'))
+  assert.ok(danger, 'опасная зона выделена красным')
+  const dangerToggle = find(danger, (element) => String(element.props.className ?? '').startsWith('dsh-ntf-acc-toggle'))[0]
+  assert.equal(texts(dangerToggle).join(' ').includes('Danger zone'), true)
+  // Опасная зона идёт последней в контейнере страницы.
+  const inner = find(page, (element) => element.props.className === 'dsh-ntf-settings-inner')[0]
+  const last = inner.children.filter((child) => child !== null).at(-1)
+  assert.equal(last, danger, 'опасная зона — последний блок страницы')
+  // «Дополнительно» содержит обновления, нативную карточку и журнал.
+  const more = accordions.find((element) => !element.props.className.includes('is-danger'))
+  for (const key of ['Updates', 'Preview', 'Recent']) {
+    assert.ok(texts(more).join(' ').includes(key), `в «Дополнительно» есть ${key}`)
+  }
+})
+
+test('прогрессивное раскрытие: громкость — после включения звука', () => {
+  const off = renderPage({ sound: false })
+  assert.equal(find(off, (element) => element.props.className === 'dsh-ntf-range').length, 0, 'без звука ползунка нет')
+  assert.ok(texts(off).join(' ').includes('Sound is off — volume appears once it is enabled.'))
+  const on = renderPage({ sound: true })
+  assert.equal(find(on, (element) => element.props.className === 'dsh-ntf-range').length, 1, 'со звуком ползунок есть')
+})
+
+test('прогрессивное раскрытие: разрешение системы — после включения системных', () => {
+  const off = renderPage({ system: false })
+  const offText = texts(off).join(' ')
+  assert.ok(offText.includes('System notifications are off — permission is needed after enabling.'))
+  assert.equal(find(off, (element) => element.props.className === 'dsh-ntf-link').length, 0, 'кнопки «Разрешить» нет')
+  const on = renderPage({ system: true })
+  const onText = texts(on).join(' ')
+  assert.ok(!onText.includes('System notifications are off — permission is needed after enabling.'))
+})
+
+test('сохранение рядом с полями: бейдж «есть изменения» и кнопки в каждой группе', () => {
+  const page = renderPage(undefined)
+  const savebars = find(page, (element) => element.props.className === 'dsh-ntf-savebar')
+  assert.equal(savebars.length, 3, 'три группы — три ряда сохранения')
+  const badges = find(page, (element) => String(element.props.className ?? '').startsWith('dsh-ntf-savebar-badge'))
+  assert.equal(badges.length, 3)
+  for (const badge of badges) {
+    assert.equal(badge.props.className, 'dsh-ntf-savebar-badge')
+    assert.equal(texts(badge).join(''), 'no changes')
+  }
+  const saveButtons = find(page, (element) => element.type === 'button' && texts(element).join('') === 'Save')
+  assert.equal(saveButtons.length, 3, 'по кнопке «Сохранить» в каждой группе')
+  for (const button of saveButtons) assert.equal(button.props.disabled, true, 'без правок «Сохранить» неактивна')
+  // «Отменить» тоже рядом с полями.
+  assert.equal(find(page, (element) => element.type === 'button' && texts(element).join('') === 'Revert').length, 3)
+})
+
+test('превью тоста свёрнуто и раскрывается кнопкой «Показать пример»', () => {
+  const page = renderPage(undefined)
+  const toggle = find(page, (element) => element.props.className === 'dsh-ntf-preview-toggle')[0]
+  assert.ok(toggle, 'кнопка «Показать пример»')
+  assert.equal(toggle.props['aria-expanded'], 'false')
+  assert.equal(texts(toggle).join(''), 'Show example')
+  const body = find(page, (element) => element.props.className === 'dsh-ntf-preview-body')[0]
+  assert.ok(body, 'тело превью')
+  assert.equal(body.props.hidden, true, 'превью не показывается до клика')
+  // Сцена и кнопки примеров внутри.
+  assert.ok(find(body, (element) => element.props.className === 'dsh-ntf-stage').length === 1)
+  assert.equal(find(body, (element) => element.type === 'button').length >= 3, true)
 })
 
 test('CSS страницы: токены DSH, карточки, шапка, адаптив, состояния', () => {

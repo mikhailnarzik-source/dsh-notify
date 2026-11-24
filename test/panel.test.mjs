@@ -208,11 +208,11 @@ test('страница панели: настройки уведомлений �
     'Toasts, sound and appearance in one place',
   )
 
-  // Все группы настроек плагина на месте.
+  // Все группы настроек плагина на месте: три группы + карточки «Дополнительно».
   const groups = find(page, (element) => element.type === 'section' && element.props.className === 'dsh-ntf-group')
-  assert.equal(groups.length, 7, 'семь карточек-секций')
+  assert.equal(groups.length, 6, 'три группы настроек и три карточки «Дополнительно»')
   const labels = texts(page).join(' ')
-  for (const key of ['Show notifications', 'Game mode', 'Sound notifications', 'Preview']) {
+  for (const key of ['Show notifications', 'Game mode', 'Sound notifications', 'Preview', 'Behavior', 'Events', 'Danger zone']) {
     assert.ok(labels.includes(key), `есть строка ${key}`)
   }
 
@@ -294,5 +294,5 @@ test('выгрузка плагина снимает слушатель и ст�
 })
 
 test('версия поднята на +0.0.1', () => {
-  assert.equal(PACKAGE.version, '1.2.66')
+  assert.equal(PACKAGE.version, '1.2.67')
 })

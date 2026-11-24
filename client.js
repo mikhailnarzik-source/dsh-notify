@@ -37,6 +37,9 @@ window.__ModuleLoader__.load({
     const PANEL_ORDER = 23
     const PANEL_VISIBILITY_KEY = 'dsh-polish:panel-visibility'
     const PANELS_CHANGED_EVENT = 'dsh-polish:panels-changed'
+    /** Состояние свёрнутых разделов страницы настроек. */
+    const MORE_OPEN_KEY = 'dsh-notify:more-open'
+    const DANGER_OPEN_KEY = 'dsh-notify:danger-open'
 
     const VARIANTS = ['compact', 'card', 'banner']
     const POSITIONS = ['bottom-right', 'bottom-left', 'top-right', 'top-left']
@@ -246,6 +249,24 @@ window.__ModuleLoader__.load({
         updateRestart: 'Новая версия заработает после перезапуска DeepSeek Harness.',
         updateNoSource: 'Источник обновлений не настроен.',
         updateControlFailed: 'Harness не ответил.',
+        groupBehavior: 'Поведение',
+        groupEvents: 'События',
+        groupBehaviorHint: 'Где и сколько живёт плашка, звук и игровой режим.',
+        groupEventsHint: 'Что именно показывать: плашки, субагенты, системные уведомления.',
+        saveSettings: 'Сохранить',
+        unsaved: 'есть изменения',
+        noChanges: 'изменений нет',
+        revert: 'Отменить',
+        showExample: 'Показать пример',
+        hideExample: 'Скрыть пример',
+        volumeOffHint: 'Звук выключен — громкость появится после его включения.',
+        systemOffHint: 'Системные уведомления выключены — разрешение понадобится после включения.',
+        moreTitle: 'Дополнительно',
+        moreHint: 'Обновления плагина, нативная карточка поверх окон и журнал последних уведомлений.',
+        dangerTitle: 'Опасная зона',
+        dangerHint: 'Очистка истории необратима: список «Недавние» станет пустым. Сами настройки плагина не меняются.',
+        clearConfirm: 'Нажмите ещё раз, чтобы очистить',
+        historyCleared: 'История очищена.',
       },
       en: {
         doneTitle: 'Task finished',
@@ -383,6 +404,24 @@ window.__ModuleLoader__.load({
         updateRestart: 'The new version starts working after DeepSeek Harness restarts.',
         updateNoSource: 'No update source is configured.',
         updateControlFailed: 'Harness did not answer.',
+        groupBehavior: 'Behavior',
+        groupEvents: 'Events',
+        groupBehaviorHint: 'Where and how long a toast lives, sound and game mode.',
+        groupEventsHint: 'What to show: toasts, subagents, system notifications.',
+        saveSettings: 'Save',
+        unsaved: 'unsaved changes',
+        noChanges: 'no changes',
+        revert: 'Revert',
+        showExample: 'Show example',
+        hideExample: 'Hide example',
+        volumeOffHint: 'Sound is off — volume appears once it is enabled.',
+        systemOffHint: 'System notifications are off — permission is needed after enabling.',
+        moreTitle: 'More',
+        moreHint: 'Plugin updates, the native card above windows and the recent notifications log.',
+        dangerTitle: 'Danger zone',
+        dangerHint: 'Clearing the history is irreversible: the Recent list becomes empty. The plugin settings stay as they are.',
+        clearConfirm: 'Click again to clear',
+        historyCleared: 'History cleared.',
       },
     }
 
@@ -526,7 +565,40 @@ window.__ModuleLoader__.load({
 .dsh-ntf-empty{margin:0;padding:10px 0;color:var(--dsw-alias-label-secondary);font-size:12px}
 .dsh-ntf-link{appearance:none;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
 .dsh-ntf-link:hover{color:var(--dsw-alias-label-primary)}
-@media (max-width:760px){.dsh-ntf-settings-inner{padding:18px 16px 32px !important}.dsh-ntf-page-actions{margin-left:0;width:100%;justify-content:flex-start}}
+/* Аккордеоны второстепенного: «Дополнительно» и «Опасная зона». */
+.dsh-ntf-acc{display:flex;flex-direction:column;min-width:0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;background:var(--dsw-alias-bg-layer-1)}
+.dsh-ntf-acc.is-danger{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 38%, var(--dsw-alias-border-l2));background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 4%, var(--dsw-alias-bg-layer-1))}
+.dsh-ntf-acc-toggle{display:flex;flex:1 1 auto;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;box-sizing:border-box;width:100%;padding:14px 16px;border:0;border-radius:14px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;font-weight:600;line-height:20px;text-align:left;cursor:pointer}
+.dsh-ntf-acc-toggle:hover{color:var(--dsw-alias-brand-primary)}
+.dsh-ntf-acc-toggle:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.dsh-ntf-acc.is-danger .dsh-ntf-acc-toggle{color:var(--dsw-alias-state-error-primary)}
+.dsh-ntf-acc-chevron{flex:none;width:14px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1}
+.dsh-ntf-acc-title{min-width:0;overflow-wrap:anywhere}
+.dsh-ntf-acc-badge{flex:none;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-height:22px;padding:1px 9px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11.5px;font-weight:600;line-height:16px;white-space:nowrap}
+.dsh-ntf-acc-badge::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:currentColor}
+.dsh-ntf-acc-body{display:flex;flex-direction:column;gap:10px;min-width:0;padding:0 16px 16px;border-top:.5px solid var(--dsw-alias-border-l1);padding-top:14px}
+.dsh-ntf-acc-body[hidden]{display:none}
+.dsh-ntf-acc-body .dsh-ntf-group{margin:0}
+/* Сохранение рядом с полями: бейдж «есть изменения» и кнопки. */
+.dsh-ntf-savebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-width:0;margin-top:12px;padding-top:12px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.dsh-ntf-savebar-badge{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:1px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11.5px;font-weight:600;line-height:18px;white-space:nowrap}
+.dsh-ntf-savebar-badge::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:currentColor}
+.dsh-ntf-savebar-badge.is-dirty{border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 55%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent);color:var(--dsw-alias-state-warn-primary)}
+.dsh-ntf-savebar-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+.dsh-ntf-save{appearance:none;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--dsw-alias-border-l4);border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer}
+.dsh-ntf-save:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}
+.dsh-ntf-save:disabled{opacity:.55;cursor:default}
+.dsh-ntf-save:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.dsh-ntf-save.is-primary{border-color:color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent);background:color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent);color:var(--dsw-alias-brand-primary)}
+.dsh-ntf-save.is-primary:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-brand-primary) 28%, transparent)}
+.dsh-ntf-save.is-danger{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 50%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 16%, transparent);color:var(--dsw-alias-state-error-primary)}
+.dsh-ntf-save.is-danger:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 26%, transparent)}
+.dsh-ntf-preview-toggle{appearance:none;display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.dsh-ntf-preview-toggle:hover{background:var(--dsw-alias-bg-layer-2)}
+.dsh-ntf-preview-toggle:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.dsh-ntf-preview-body{margin-top:10px}
+.dsh-ntf-preview-body[hidden]{display:none}
+@media (max-width:760px){.dsh-ntf-settings-inner{padding:18px 16px 32px !important}.dsh-ntf-page-actions{margin-left:0;width:100%;justify-content:flex-start}.dsh-ntf-savebar-actions{width:100%;margin-left:0}.dsh-ntf-savebar-actions .dsh-ntf-save{flex:1 1 auto}.dsh-ntf-acc-toggle{padding:12px}.dsh-ntf-acc-body{padding:0 12px 12px;padding-top:12px}.dsh-ntf-row{gap:10px}.dsh-ntf-row-control{justify-content:flex-start}}
 @media (prefers-reduced-motion: reduce){.dsh-ntf-card{animation:none}.dsh-ntf-progress{animation:none}}
 `
 
@@ -1264,6 +1336,86 @@ window.__ModuleLoader__.load({
       return t('updateNever')
     }
 
+    /** Поля трёх групп настроек: черновик и сохранённые значения сравниваются по ним. */
+    const GROUP_KEYS = {
+      appearance: ['theme', 'variant', 'textSize', 'fontFamily', 'fontStyle'],
+      behavior: ['position', 'duration', 'sound', 'volume', 'gameMode'],
+      events: ['notifications', 'subagentInChat', 'system'],
+    }
+
+    /** Есть ли несохранённые правки в перечисленных полях. */
+    function groupDirty(draft, saved, keys) {
+      return keys.some((key) => draft[key] !== saved[key])
+    }
+
+    /** Патч только из перечисленных полей — сохраняется одна группа. */
+    function groupPatch(source, keys) {
+      const patch = {}
+      for (const key of keys) patch[key] = source[key]
+      return patch
+    }
+
+    /** Свёрнутый раздел: заголовок-кнопка, бейдж и тело, скрытое атрибутом `hidden`. */
+    function Accordion(props) {
+      const storageKey = typeof props.storageKey === 'string' ? props.storageKey : ''
+      const [open, setOpen] = React.useState(() => {
+        if (typeof props.defaultOpen === 'boolean') return props.defaultOpen
+        if (storageKey === '') return false
+        try {
+          return window.localStorage.getItem(storageKey) === '1'
+        } catch {
+          return false
+        }
+      })
+      const toggle = () => {
+        const next = open !== true
+        if (storageKey !== '') {
+          try {
+            window.localStorage.setItem(storageKey, next ? '1' : '0')
+          } catch {
+            // Приватный режим: раздел всё равно раскроется в текущей вкладке.
+          }
+        }
+        setOpen(next)
+      }
+      return h('section', { className: `dsh-ntf-acc${props.tone === 'danger' ? ' is-danger' : ''}` },
+        h('button', {
+          type: 'button',
+          className: 'dsh-ntf-acc-toggle',
+          'aria-expanded': open === true ? 'true' : 'false',
+          onClick: toggle,
+        },
+          h('span', { className: 'dsh-ntf-acc-chevron', 'aria-hidden': 'true' }, open === true ? '▾' : '▸'),
+          h('span', { className: 'dsh-ntf-acc-title' }, props.title),
+          typeof props.badge === 'string' && props.badge !== ''
+            ? h('span', { className: 'dsh-ntf-acc-badge' }, props.badge)
+            : null),
+        h('div', { className: 'dsh-ntf-acc-body', hidden: open !== true }, props.children))
+    }
+
+    /** Ряд «есть изменения» + «Отменить»/«Сохранить» внутри карточки настроек. */
+    function SaveBar(props) {
+      const dirty = props.dirty === true
+      return h('div', { className: 'dsh-ntf-savebar' },
+        h('span', {
+          className: dirty ? 'dsh-ntf-savebar-badge is-dirty' : 'dsh-ntf-savebar-badge',
+          role: 'status',
+        }, dirty ? t('unsaved') : t('noChanges')),
+        h('div', { className: 'dsh-ntf-savebar-actions' },
+          h('button', {
+            type: 'button',
+            className: 'dsh-ntf-save',
+            disabled: !dirty || props.busy === true,
+            onClick: props.onRevert,
+          }, t('revert')),
+          h('button', {
+            type: 'button',
+            className: 'dsh-ntf-save is-primary',
+            disabled: !dirty || props.busy === true,
+            onClick: props.onSave,
+          }, t('saveSettings'))))
+    }
+
     function SettingsPage(props) {
       const controller = props.controller
       useStore(controller.localeTick)
@@ -1274,16 +1426,40 @@ window.__ModuleLoader__.load({
       const update = useStore(controller.updateState)
       const subagents = useStore(controller.subagentStats)
       const updateBusy = update.status === 'checking' || update.status === 'installing'
+      const [draft, setDraft] = React.useState(() => ({ ...DEFAULTS, ...settings }))
+      const [previewOpen, setPreviewOpen] = React.useState(false)
+      const [clearArmed, setClearArmed] = React.useState(false)
       React.useEffect(() => {
         // The page may have been open for hours; read the current status.
         void controller.refreshUpdate()
       }, [controller])
-      const variant = pick(settings.variant, VARIANTS, DEFAULTS.variant)
-      const position = pick(settings.position, POSITIONS, DEFAULTS.position)
-      const duration = pick(settings.duration, DURATIONS, DEFAULTS.duration)
-      const textSize = pick(settings.textSize, TEXT_SIZES, DEFAULTS.textSize)
-      const fontFamily = pick(settings.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)
-      const fontStyle = pick(settings.fontStyle, FONT_STYLES, DEFAULTS.fontStyle)
+      // Хост мог прислать новые настройки из другой вкладки: черновик
+      // подтягивается, пока в нём нет несохранённых правок.
+      React.useEffect(() => {
+        setDraft((current) => {
+          const nextSaved = { ...DEFAULTS, ...settings }
+          const hasEdits = Object.keys(GROUP_KEYS).some((group) => groupDirty(current, nextSaved, GROUP_KEYS[group]))
+          return hasEdits ? current : nextSaved
+        })
+      }, [settings])
+      const saved = { ...DEFAULTS, ...settings }
+      /** Правка черновика: применяется кнопкой «Сохранить» в своей группе. */
+      const edit = (patch) => setDraft((current) => ({ ...current, ...patch }))
+      /** Откатить поля группы к сохранённым значениям. */
+      const revertGroup = (keys) => setDraft((current) => ({ ...current, ...groupPatch(saved, keys) }))
+      /** Сохранить поля одной группы: controller.update пишет их на диск. */
+      const saveGroup = (keys) => controller.update(groupPatch(draft, keys))
+      const dirty = {
+        appearance: groupDirty(draft, saved, GROUP_KEYS.appearance),
+        behavior: groupDirty(draft, saved, GROUP_KEYS.behavior),
+        events: groupDirty(draft, saved, GROUP_KEYS.events),
+      }
+      const variant = pick(draft.variant, VARIANTS, DEFAULTS.variant)
+      const position = pick(draft.position, POSITIONS, DEFAULTS.position)
+      const duration = pick(draft.duration, DURATIONS, DEFAULTS.duration)
+      const textSize = pick(draft.textSize, TEXT_SIZES, DEFAULTS.textSize)
+      const fontFamily = pick(draft.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily)
+      const fontStyle = pick(draft.fontStyle, FONT_STYLES, DEFAULTS.fontStyle)
       const systemSupported = typeof Notification === 'function'
       const systemHint = !systemSupported
         ? t('systemUnsupported')
@@ -1321,39 +1497,7 @@ window.__ModuleLoader__.load({
                   : null,
                 h('button', { type: 'button', className: 'dsh-ntf-refresh', onClick: () => { void controller.refreshPage() } }, t('pageRefresh')))),
             h('p', { className: 'dsh-ntf-lead' }, t('settingsLead')),
-            h('section', { className: 'dsh-ntf-group' },
-              h('h2', { className: 'dsh-ntf-group-title' }, t('updateGroup')),
-              h('div', { className: 'dsh-ntf-group-body' },
-                h(Row, {
-                  title: t('updateCurrent'),
-                  description: update.source !== '' ? update.source : undefined,
-                }, h('span', { className: 'dsh-ntf-row-title' }, update.current !== '' ? update.current : '—')),
-                h(Row, {
-                  title: t('updateStatus'),
-                  description: `${updateStatusText(update)}${update.checkedAt > 0
-                    ? ` ${t('updateCheckedAt', { time: formatClock(update.checkedAt) })}`
-                    : ''}`,
-                },
-                h('button', {
-                  type: 'button',
-                  className: 'dsh-ntf-preview',
-                  disabled: updateBusy,
-                  onClick: () => {
-                    void controller.checkUpdates()
-                  },
-                }, t('updateCheck')),
-                update.status === 'available'
-                  ? h('button', {
-                      type: 'button',
-                      className: 'dsh-ntf-action',
-                      disabled: updateBusy,
-                      onClick: () => {
-                        void controller.installUpdate()
-                      },
-                    }, t('updateInstall'))
-                  : null),
-                h('p', { className: 'dsh-ntf-note' },
-                  update.restartRequired ? t('updateRestart') : t('updateHint')))),
+            // Группа «Оформление»: тема, шрифт и размер; превью тоста свёрнуто.
             h('section', { className: 'dsh-ntf-group' },
               h('h2', { className: 'dsh-ntf-group-title' }, t('groupLook')),
               h('div', { className: 'dsh-ntf-look' },
@@ -1362,9 +1506,9 @@ window.__ModuleLoader__.load({
                   h('select', {
                     id: 'dsh-ntf-theme',
                     className: 'dsh-ntf-select',
-                    value: resolvedTheme(settings),
+                    value: pick(draft.theme, THEMES, 'system'),
                     'aria-label': t('themeLabel'),
-                    onChange: event => controller.update({ theme: pick(event.target.value, THEMES, 'system') }),
+                    onChange: event => edit({ theme: pick(event.target.value, THEMES, 'system') }),
                   },
                   h('option', { value: 'system' }, t('themeSystem')),
                   h('option', { value: 'dark' }, t('themeDark')),
@@ -1375,7 +1519,7 @@ window.__ModuleLoader__.load({
                   h(Segmented, {
                     label: t('variant'),
                     value: variant,
-                    onChange: value => controller.update({ variant: value }),
+                    onChange: value => edit({ variant: value }),
                     options: [
                       { value: 'compact', label: t('variantCompact') },
                       { value: 'card', label: t('variantCard') },
@@ -1387,7 +1531,7 @@ window.__ModuleLoader__.load({
                   h(Segmented, {
                     label: t('textSize'),
                     value: textSize,
-                    onChange: value => controller.update({ textSize: value }),
+                    onChange: value => edit({ textSize: value }),
                     options: [
                       { value: 12, label: t('textSizeSmall') },
                       { value: 13, label: t('textSizeNormal') },
@@ -1402,7 +1546,7 @@ window.__ModuleLoader__.load({
                     className: 'dsh-ntf-select',
                     value: fontFamily,
                     'aria-label': t('fontFamily'),
-                    onChange: event => controller.update({ fontFamily: pick(event.target.value, FONT_FAMILIES, DEFAULTS.fontFamily) }),
+                    onChange: event => edit({ fontFamily: pick(event.target.value, FONT_FAMILIES, DEFAULTS.fontFamily) }),
                   },
                   h('option', { value: 'system' }, t('fontSystem')),
                   h('option', { value: 'sans' }, t('fontSans')),
@@ -1413,66 +1557,79 @@ window.__ModuleLoader__.load({
                   h(Segmented, {
                     label: t('fontStyle'),
                     value: fontStyle,
-                    onChange: value => controller.update({ fontStyle: value }),
+                    onChange: value => edit({ fontStyle: value }),
                     options: [
                       { value: 'normal', label: t('styleNormal') },
                       { value: 'bold', label: t('styleBold') },
                       { value: 'italic', label: t('styleItalic') },
                     ],
                   })),
-                h('div', { className: 'dsh-ntf-stage', 'data-pos': position },
-                  h(ToastCard, {
-                    item: {
-                      uid: 'style-preview',
-                      kind: 'done',
-                      sessionId: 'preview',
-                      sessionTitle: t('previewSession'),
-                      reason: '',
-                      tool: '',
-                      question: '',
-                      message: '',
-                      durationMs: 120_000,
-                      at: Date.now(),
-                      duration,
-                      count: 1,
-                      leaving: false,
-                      sticky: false,
-                      unseen: false,
-                    },
-                    variant,
-                    theme: resolvedTheme(settings),
-                    textSize,
-                    fontFamily,
-                    fontStyle,
-                    onClose: () => {},
-                    onOpen: () => {},
-                  })))),
+                h('button', {
+                  type: 'button',
+                  className: 'dsh-ntf-preview-toggle',
+                  'aria-expanded': previewOpen === true ? 'true' : 'false',
+                  onClick: () => setPreviewOpen(previewOpen !== true),
+                }, previewOpen === true ? t('hideExample') : t('showExample')),
+                h('div', { className: 'dsh-ntf-preview-body', hidden: previewOpen !== true },
+                  h('p', { className: 'dsh-ntf-note' }, t('previewHint')),
+                  h('div', { className: 'dsh-ntf-stage', 'data-pos': position },
+                    h(ToastCard, {
+                      item: {
+                        uid: 'style-preview',
+                        kind: 'done',
+                        sessionId: 'preview',
+                        sessionTitle: t('previewSession'),
+                        reason: '',
+                        tool: '',
+                        question: '',
+                        message: '',
+                        durationMs: 120_000,
+                        at: Date.now(),
+                        duration,
+                        count: 1,
+                        leaving: false,
+                        sticky: false,
+                        unseen: false,
+                      },
+                      variant,
+                      theme: resolvedTheme(draft),
+                      textSize,
+                      fontFamily,
+                      fontStyle,
+                      onClose: () => {},
+                      onOpen: () => {},
+                    })),
+                  h('div', { className: 'dsh-ntf-previews' },
+                    h('button', {
+                      type: 'button',
+                      className: 'dsh-ntf-preview dsh-ntf-kind-done',
+                      onClick: () => controller.preview('done'),
+                    }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewDone')),
+                    h('button', {
+                      type: 'button',
+                      className: 'dsh-ntf-preview dsh-ntf-kind-attention',
+                      onClick: () => controller.preview('attention'),
+                    }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewAttention')),
+                    h('button', {
+                      type: 'button',
+                      className: 'dsh-ntf-preview dsh-ntf-kind-error',
+                      onClick: () => controller.preview('error'),
+                    }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewError'))))),
+              h(SaveBar, {
+                dirty: dirty.appearance,
+                onSave: () => saveGroup(GROUP_KEYS.appearance),
+                onRevert: () => revertGroup(GROUP_KEYS.appearance),
+              })),
+            // Группа «Поведение»: позиция, длительность, звук; громкость — после включения звука.
             h('section', { className: 'dsh-ntf-group' },
-              h('h2', { className: 'dsh-ntf-group-title' }, t('groupShow')),
+              h('h2', { className: 'dsh-ntf-group-title' }, t('groupBehavior')),
+              h('p', { className: 'dsh-ntf-note' }, t('groupBehaviorHint')),
               h('div', { className: 'dsh-ntf-group-body' },
-                h(Row, {
-                  title: t('notifications'),
-                  description: t('notificationsHint'),
-                }, h(Switch, {
-                  checked: settings.notifications,
-                  label: t('notifications'),
-                  onChange: value => controller.update({ notifications: value }),
-                })),
-
-                h(Row, {
-                  title: t('subagentInChat'),
-                  description: t('subagentInChatHint'),
-                }, h(Switch, {
-                  checked: settings.subagentInChat === true,
-                  label: t('subagentInChat'),
-                  onChange: value => controller.update({ subagentInChat: value }),
-                })),
-
                 h(Row, { title: t('position'), description: t('positionHint') },
                   h(Segmented, {
                     label: t('position'),
                     value: position,
-                    onChange: value => controller.update({ position: value }),
+                    onChange: value => edit({ position: value }),
                     options: [
                       { value: 'bottom-right', label: t('positionBottomRight') },
                       { value: 'bottom-left', label: t('positionBottomLeft') },
@@ -1484,7 +1641,7 @@ window.__ModuleLoader__.load({
                   h(Segmented, {
                     label: t('duration'),
                     value: duration,
-                    onChange: value => controller.update({ duration: value }),
+                    onChange: value => edit({ duration: value }),
                     options: [
                       { value: 4000, label: t('duration4') },
                       { value: 6000, label: t('duration6') },
@@ -1492,103 +1649,172 @@ window.__ModuleLoader__.load({
                       { value: 0, label: t('durationNever') },
                     ],
                   })),
-                h(Row, { title: t('gameMode'), description: t('gameModeHint') },
-                  h(Switch, {
-                    checked: settings.gameMode === true,
-                    label: t('gameMode'),
-                    onChange: value => controller.update({ gameMode: value }),
-                  })))),
-            h('section', { className: 'dsh-ntf-group' },
-              h('h2', { className: 'dsh-ntf-group-title' }, t('groupSound')),
-              h('div', { className: 'dsh-ntf-group-body' },
                 h(Row, { title: t('sound'), description: t('soundHint') },
                   h(Switch, {
-                    checked: settings.sound,
+                    checked: draft.sound === true,
                     label: t('sound'),
-                    onChange: value => controller.update({ sound: value }),
+                    onChange: value => edit({ sound: value }),
                   })),
-                h(Row, { title: t('volume'), description: t('volumeHint') },
-                  h('input', {
-                    className: 'dsh-ntf-range',
-                    type: 'range',
-                    min: 0,
-                    max: 200,
-                    step: 5,
-                    value: settings.volume,
-                    'aria-label': t('volume'),
-                    onChange: event => controller.update({ volume: Number(event.target.value) || 0 }),
-                  }),
-                  h('span', { className: 'dsh-ntf-value' }, `${settings.volume}%`)))),
+                draft.sound === true
+                  ? h(Row, { title: t('volume'), description: t('volumeHint') },
+                      h('input', {
+                        className: 'dsh-ntf-range',
+                        type: 'range',
+                        min: 0,
+                        max: 200,
+                        step: 5,
+                        value: Number(draft.volume) || 0,
+                        'aria-label': t('volume'),
+                        onChange: event => edit({ volume: Number(event.target.value) || 0 }),
+                      }),
+                      h('span', { className: 'dsh-ntf-value' }, `${Number(draft.volume) || 0}%`))
+                  : h('p', { className: 'dsh-ntf-note' }, t('volumeOffHint')),
+                h(Row, { title: t('gameMode'), description: t('gameModeHint') },
+                  h(Switch, {
+                    checked: draft.gameMode === true,
+                    label: t('gameMode'),
+                    onChange: value => edit({ gameMode: value }),
+                  }))),
+              h(SaveBar, {
+                dirty: dirty.behavior,
+                onSave: () => saveGroup(GROUP_KEYS.behavior),
+                onRevert: () => revertGroup(GROUP_KEYS.behavior),
+              })),
+            // Группа «События»: что показывать; разрешение — после включения системы.
             h('section', { className: 'dsh-ntf-group' },
-              h('h2', { className: 'dsh-ntf-group-title' }, t('groupSystem')),
+              h('h2', { className: 'dsh-ntf-group-title' }, t('groupEvents')),
+              h('p', { className: 'dsh-ntf-note' }, t('groupEventsHint')),
               h('div', { className: 'dsh-ntf-group-body' },
+                h(Row, { title: t('notifications'), description: t('notificationsHint') },
+                  h(Switch, {
+                    checked: draft.notifications === true,
+                    label: t('notifications'),
+                    onChange: value => edit({ notifications: value }),
+                  })),
+                h(Row, { title: t('subagentInChat'), description: t('subagentInChatHint') },
+                  h(Switch, {
+                    checked: draft.subagentInChat === true,
+                    label: t('subagentInChat'),
+                    onChange: value => edit({ subagentInChat: value }),
+                  })),
                 h(Row, { title: t('system'), description: t('systemHint') },
                   h(Switch, {
-                    checked: settings.system === true,
+                    checked: draft.system === true,
                     disabled: !systemSupported || permission === 'denied',
                     label: t('system'),
                     onChange: value => {
-                      controller.update({ system: value })
+                      edit({ system: value })
                       if (value && permission === 'default') controller.requestPermission()
                     },
                   })),
-                systemHint === null
-                  ? null
-                  : h('p', { className: 'dsh-ntf-note' }, systemHint),
-                systemSupported && permission === 'default'
+                draft.system !== true
+                  ? h('p', { className: 'dsh-ntf-note' }, t('systemOffHint'))
+                  : null,
+                draft.system === true && systemHint !== null
+                  ? h('p', { className: 'dsh-ntf-note' }, systemHint)
+                  : null,
+                draft.system === true && systemSupported && permission === 'default'
                   ? h('p', { className: 'dsh-ntf-note' },
                       h('button', { type: 'button', className: 'dsh-ntf-link', onClick: () => controller.requestPermission() }, t('systemAsk')))
-                  : null)),
-            h('section', { className: 'dsh-ntf-group' },
-              h('h2', { className: 'dsh-ntf-group-title' }, t('groupPreview')),
-              h('p', { className: 'dsh-ntf-note' }, t('previewHint')),
-              h('div', { className: 'dsh-ntf-previews' },
-                h('button', {
-                  type: 'button',
-                  className: 'dsh-ntf-preview dsh-ntf-kind-done',
-                  onClick: () => controller.preview('done'),
-                }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewDone')),
-                h('button', {
-                  type: 'button',
-                  className: 'dsh-ntf-preview dsh-ntf-kind-attention',
-                  onClick: () => controller.preview('attention'),
-                }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewAttention')),
-                h('button', {
-                  type: 'button',
-                  className: 'dsh-ntf-preview dsh-ntf-kind-error',
-                  onClick: () => controller.preview('error'),
-                }, h('span', { className: 'dsh-ntf-preview-dot' }), t('previewError'))),
-              h(Row, { title: t('nativeTest'), description: t('nativeTestHint') },
-                h('button', {
-                  type: 'button',
-                  className: 'dsh-ntf-action',
-                  disabled: !nativeAvailable,
-                  onClick: () => controller.previewNative(),
-                }, t('nativeShow'))),
-              nativeAvailable ? null : h('p', { className: 'dsh-ntf-note' }, t('nativeUnavailable'))),
-            h('section', { className: 'dsh-ntf-group' },
-              h('div', { className: 'dsh-ntf-group-head' },
+                  : null),
+              h(SaveBar, {
+                dirty: dirty.events,
+                onSave: () => saveGroup(GROUP_KEYS.events),
+                onRevert: () => revertGroup(GROUP_KEYS.events),
+              })),
+            // «Дополнительно»: обновления, нативная карточка, журнал — свёрнуто.
+            h(Accordion, {
+              storageKey: MORE_OPEN_KEY,
+              title: t('moreTitle'),
+              badge: update.status === 'available' ? t('updateNow') : '',
+            },
+              h('p', { className: 'dsh-ntf-note' }, t('moreHint')),
+              h('section', { className: 'dsh-ntf-group' },
+                h('h2', { className: 'dsh-ntf-group-title' }, t('updateGroup')),
+                h('div', { className: 'dsh-ntf-group-body' },
+                  h(Row, {
+                    title: t('updateCurrent'),
+                    description: update.source !== '' ? update.source : undefined,
+                  }, h('span', { className: 'dsh-ntf-row-title' }, update.current !== '' ? update.current : '—')),
+                  h(Row, {
+                    title: t('updateStatus'),
+                    description: `${updateStatusText(update)}${update.checkedAt > 0
+                      ? ` ${t('updateCheckedAt', { time: formatClock(update.checkedAt) })}`
+                      : ''}`,
+                  },
+                  h('button', {
+                    type: 'button',
+                    className: 'dsh-ntf-preview',
+                    disabled: updateBusy,
+                    onClick: () => {
+                      void controller.checkUpdates()
+                    },
+                  }, t('updateCheck')),
+                  update.status === 'available'
+                    ? h('button', {
+                        type: 'button',
+                        className: 'dsh-ntf-action',
+                        disabled: updateBusy,
+                        onClick: () => {
+                          void controller.installUpdate()
+                        },
+                      }, t('updateInstall'))
+                    : null),
+                  h('p', { className: 'dsh-ntf-note' },
+                    update.restartRequired ? t('updateRestart') : t('updateHint')))),
+              h('section', { className: 'dsh-ntf-group' },
+                h('h2', { className: 'dsh-ntf-group-title' }, t('groupPreview')),
+                h('div', { className: 'dsh-ntf-group-body' },
+                  h(Row, { title: t('nativeTest'), description: t('nativeTestHint') },
+                    h('button', {
+                      type: 'button',
+                      className: 'dsh-ntf-action',
+                      disabled: !nativeAvailable,
+                      onClick: () => controller.previewNative(),
+                    }, t('nativeShow'))),
+                  nativeAvailable ? null : h('p', { className: 'dsh-ntf-note' }, t('nativeUnavailable')))),
+              h('section', { className: 'dsh-ntf-group' },
                 h('h2', { className: 'dsh-ntf-group-title' }, t('groupHistory')),
                 history.length === 0
-                  ? null
-                  : h('button', { type: 'button', className: 'dsh-ntf-link', onClick: () => controller.clearHistory() }, t('clear'))),
-              history.length === 0
-                ? h('p', { className: 'dsh-ntf-empty' }, t('historyEmpty'))
-                : h('ul', { className: 'dsh-ntf-history' },
-                    history.map(entry => {
-                      const info = describe(entry)
-                      const openable = typeof entry.sessionId === 'string' && entry.sessionId !== ''
-                      return h('li', { key: entry.uid ?? `${entry.at}-${entry.kind}` },
-                        h('button', {
-                          type: 'button',
-                          className: `dsh-ntf-history-row dsh-ntf-kind-${entry.kind}`,
-                          disabled: !openable,
-                          onClick: openable ? () => controller.openFromToast(entry) : undefined,
-                        },
-                        h('span', { className: 'dsh-ntf-history-dot' }),
-                        h('span', { className: 'dsh-ntf-history-text' }, `${info.title} — ${info.body}`),
-                        h('span', { className: 'dsh-ntf-history-time' }, formatClock(entry.at))))
-                    }))))))
+                  ? h('p', { className: 'dsh-ntf-empty' }, t('historyEmpty'))
+                  : h('ul', { className: 'dsh-ntf-history' },
+                      history.map(entry => {
+                        const info = describe(entry)
+                        const openable = typeof entry.sessionId === 'string' && entry.sessionId !== ''
+                        return h('li', { key: entry.uid ?? `${entry.at}-${entry.kind}` },
+                          h('button', {
+                            type: 'button',
+                            className: `dsh-ntf-history-row dsh-ntf-kind-${entry.kind}`,
+                            disabled: !openable,
+                            onClick: openable ? () => controller.openFromToast(entry) : undefined,
+                          },
+                          h('span', { className: 'dsh-ntf-history-dot' }),
+                          h('span', { className: 'dsh-ntf-history-text' }, `${info.title} — ${info.body}`),
+                          h('span', { className: 'dsh-ntf-history-time' }, formatClock(entry.at))))
+                      })))),
+            // «Опасная зона»: очистка истории — внизу, свёрнута, с подтверждением.
+            h(Accordion, {
+              storageKey: DANGER_OPEN_KEY,
+              tone: 'danger',
+              title: t('dangerTitle'),
+              badge: history.length > 0 ? String(history.length) : '',
+            },
+              h('p', { className: 'dsh-ntf-note' }, t('dangerHint')),
+              h('button', {
+                type: 'button',
+                className: 'dsh-ntf-save is-danger',
+                disabled: history.length === 0,
+                title: clearArmed ? t('clearConfirm') : t('clear'),
+                onClick: () => {
+                  if (clearArmed !== true) {
+                    setClearArmed(true)
+                    return
+                  }
+                  controller.clearHistory()
+                  setClearArmed(false)
+                },
+              }, clearArmed === true ? t('clearConfirm') : t('clear'))),
+        )))
     }
 
     /** Everything the two surfaces share: settings, toast stack, feed and sound. */
